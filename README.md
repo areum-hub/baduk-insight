@@ -54,6 +54,8 @@ SGF 기보가 열리면 바둑판 위에서 **▶ 재생 / ⏸ 일시정지 / �
 
 분석 방문 수는 **10회가 기본값**입니다(선택: 5/10/25/50/100). Intel 내장 그래픽 + CPU용 Eigen KataGo에서는 5~10으로 먼저 테스트하세요. 같은 기보·국면·규칙·덤·엔진·모델·방문 수로 재분석하면 Streamlit 서버 메모리 캐시를 재사용합니다. 앱을 재시작하거나 다른 국면을 분석하면 엔진을 다시 시작해야 합니다.
 
+**경량 모델 교체 (Intel UHD Graphics / CPU):** 공식 KataGo `kata1-b10c128-s1141046784-d204142634.txt.gz` 모델을 사용합니다. 기존 대형 `.bin.gz` 대신 PC의 `Downloads`에 새 `.txt.gz`를 내려받은 후, 앱 왼쪽 **Neural net model path**에 전체 경로를 입력하고 **KataGo 설정 저장**을 클릭하세요. `Maximum visits`는 우선 **5 또는 10**으로 설정합니다. 새 모델로 실제 KataGo 분석이 성공한 후 기존 큰 가중치 파일을 삭제할 수 있습니다. 모델 파일은 GitHub에 추가하지 않습니다. [공식 모델 목록](https://katagotraining.org/networks/), [경량 모델 직접 링크](https://media.katagotraining.org/uploaded/networks/models/kata1/kata1-b10c128-s1141046784-d204142634.txt.gz).
+
 **중요:** 대형 KataGo 신경망의 첫 실행과 CPU 추론 자체는 여전히 느릴 수 있습니다. 방문 수를 줄여도 신경망 로딩 시간이 사라지지는 않습니다. 충분히 빨라지지 않으면 [KataGo 공식 모델 목록](https://katagotraining.org/networks/)에서 더 작은 네트워크 모델을 선택해야 합니다. 실제 성능은 사용자 PC에서 검증해야 합니다.
 
 ## 단계별 개발 현황
