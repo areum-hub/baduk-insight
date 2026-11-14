@@ -48,6 +48,14 @@ SGF 기보가 열리면 바둑판 위에서 **▶ 재생 / ⏸ 일시정지 / �
 
 자동 재생은 Streamlit fragment 기반으로 갱신합니다. 실행 검증은 사용자 Windows 환경에서 아직 필요합니다. 제어 로직은 `src/playback.py`, 테스트는 `tests/test_playback.py`에 분리했습니다.
 
+## KataGo 경로 저장과 CPU 빠른 분석
+
+왼쪽 **KataGo (local)**에서 `KataGo executable`과 `Neural net model path`, 설정 파일 경로를 입력하고 **KataGo 설정 저장** 버튼을 누르세요. 저장 위치는 `data/local/katago_settings.json`이며 Git에서 제외됩니다. 따라서 개인 PC의 설치 경로가 원격 저장소에 업로드되지 않습니다.
+
+분석 방문 수는 **10회가 기본값**입니다(선택: 5/10/25/50/100). Intel 내장 그래픽 + CPU용 Eigen KataGo에서는 5~10으로 먼저 테스트하세요. 같은 기보·국면·규칙·덤·엔진·모델·방문 수로 재분석하면 Streamlit 서버 메모리 캐시를 재사용합니다. 앱을 재시작하거나 다른 국면을 분석하면 엔진을 다시 시작해야 합니다.
+
+**중요:** 대형 KataGo 신경망의 첫 실행과 CPU 추론 자체는 여전히 느릴 수 있습니다. 방문 수를 줄여도 신경망 로딩 시간이 사라지지는 않습니다. 충분히 빨라지지 않으면 [KataGo 공식 모델 목록](https://katagotraining.org/networks/)에서 더 작은 네트워크 모델을 선택해야 합니다. 실제 성능은 사용자 PC에서 검증해야 합니다.
+
 ## 단계별 개발 현황
 
 | 단계 | 구현한 코드 | 아직 필요한 작업 |
@@ -125,6 +133,7 @@ baduk-insight/
 │   ├── sgf_service.py             # 기보 파싱 및 재생
 │   ├── board_svg.py               # 바둑판 SVG
 │   ├── katago_client.py           # KataGo 분석 요청/응답
+│   ├── local_settings.py          # 로컬 KataGo 설정 저장
 │   ├── ollama_client.py           # 임베딩과 채팅 요청
 │   └── rag_pipeline.py            # 문서 색인·검색·프롬프트
 ├── knowledge/                     # 직접 작성한 기초 바둑 학습 노트 10개
