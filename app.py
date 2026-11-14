@@ -1,4 +1,4 @@
-"""Baduk Insight — SGF, KataGo, and local RAG study chatbot (Phase 3)."""
+"""Baduk Insight — SGF review, optional KataGo, and fast local study-note chat."""
 import hashlib
 import json
 import time
