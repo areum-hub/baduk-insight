@@ -21,9 +21,61 @@ DEFAULT_CONFIG = PROJECT / "configs" / "analysis_local.cfg"
 PLAYBACK_SECONDS = 2  # Fixed playback interval for personal study
 
 st.set_page_config(page_title="Baduk Insight", page_icon="⚫", layout="wide")
-st.title("Baduk Insight")
-st.caption("Personal AI Go learning project | Phase 3: RAG chatbot")
-st.info("현재 단계: SGF 복기 + KataGo 선택 수 분석 + 로컬 바둑 개념 RAG 학습 챗봇. 개인 학습 기록은 이후 구현 예정입니다.")
+st.markdown(
+    """
+    <style>
+    .bi-brand-header {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 4px 0 20px;
+        margin-bottom: 16px;
+        border-bottom: 1px solid rgba(127, 127, 127, 0.22);
+    }
+    .bi-stones {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        flex-shrink: 0;
+    }
+    .bi-stone {
+        width: 21px;
+        height: 21px;
+        border-radius: 50%;
+        display: inline-block;
+        box-sizing: border-box;
+    }
+    .bi-stone-black {
+        background: #202126;
+        box-shadow: inset -3px -4px 4px rgba(0, 0, 0, 0.25),
+                    0 1px 3px rgba(0, 0, 0, 0.16);
+    }
+    .bi-stone-white {
+        background: #f8f8f6;
+        border: 1px solid #9b9b9b;
+        box-shadow: inset -3px -3px 4px rgba(0, 0, 0, 0.08),
+                    0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    .bi-brand-title {
+        margin: 0 !important;
+        padding: 0 !important;
+        font-size: clamp(1.75rem, 3vw, 2.25rem) !important;
+        line-height: 1.15 !important;
+        letter-spacing: -0.035em !important;
+        font-weight: 700 !important;
+        color: inherit !important;
+    }
+    </style>
+    <div class="bi-brand-header">
+        <span class="bi-stones" aria-hidden="true">
+            <span class="bi-stone bi-stone-black"></span>
+            <span class="bi-stone bi-stone-white"></span>
+        </span>
+        <h1 class="bi-brand-title">Baduk Insight</h1>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 available = sorted(DATA_DIR.glob("*.sgf")) if DATA_DIR.exists() else []
 with st.sidebar:
