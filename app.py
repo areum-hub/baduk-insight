@@ -297,6 +297,23 @@ with st.sidebar:
             source_count = len(source_notes)
             index_count = get_collection().count()
             st.metric("보유한 바둑 학습 노트", f"{source_count}개")
+            st.markdown("**공부할 수 있는 주제**")
+            study_titles = [
+                next(
+                    (line.lstrip("# ").strip() for line in note["text"].splitlines()
+                     if line.startswith("# ")),
+                    note["title"],
+                )
+                for note in source_notes
+            ]
+            if study_titles:
+                st.caption(" · ".join(study_titles[:6]))
+                if len(study_titles) > 6:
+                    with st.expander(f"전체 학습 주제 {len(study_titles)}개 보기", expanded=False):
+                        for topic_index, title in enumerate(study_titles, start=1):
+                            st.caption(f"{topic_index:02d}  {title}")
+            else:
+                st.caption("학습 자료가 없습니다.")
             st.caption(f"AI 검색에 등록된 문서: {index_count}개")
             if index_count != source_count:
                 st.info("학습 노트와 검색 데이터의 개수가 다릅니다. 아래에서 동기화해 주세요.")
@@ -504,10 +521,6 @@ with right:
     for message in st.session_state.rag_messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
-            if message.get("sources"):
-                with st.expander("검색 근거 문서"):
-                    for source in message["sources"]:
-                        st.caption(f"{source['title']} · knowledge/{source['path']}")
     typed_question = st.chat_input(
         "바둑에서 궁금한 점을 입력하세요...",
         disabled=st.session_state.playing,
@@ -522,10 +535,6 @@ with right:
             try:
                 reply, sources = quick_answer(question, load_notes())
                 st.markdown(reply)
-                if sources:
-                    with st.expander("참고한 학습 노트"):
-                        for source in sources:
-                            st.caption(f"{source['title']} · knowledge/{source['path']}")
                 st.session_state.rag_messages.append({
                     "role": "assistant", "content": reply, "sources": sources,
                 })
