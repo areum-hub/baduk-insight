@@ -399,7 +399,7 @@ with right:
                 key_json = json.dumps(position, ensure_ascii=False, sort_keys=True)
                 query["id"] = hashlib.sha256(key_json.encode("utf-8")).hexdigest()[:24]
                 query_json = json.dumps(query, ensure_ascii=False, sort_keys=True)
-                with st.spinner("KataGo 분석 중... (같은 국면은 캐시에서 재사용)"):
+                with st.spinner("AI가 현재 장면을 분석하고 있습니다..."):
                     result = cached_katago_analysis(query_json, binary, model, config)
                 st.session_state.analysis_key = lookup
                 st.session_state.analysis_result = result
