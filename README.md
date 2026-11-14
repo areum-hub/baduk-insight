@@ -1,194 +1,127 @@
 # Baduk Insight
 
-**프로 바둑 기보로 공부하는 나만의 AI 바둑 복기 챗봇**  
-*A personal Go (Baduk) review & learning chatbot powered by KataGo and RAG.*
+**프로 바둑 기보를 한 수씩 복기하고, KataGo 추천 수와 바둑 학습 노트를 함께 살펴보는 개인 학습 프로젝트**
 
-좋아하는 **바둑**을 AI 개발 공부와 연결하기 위해 시작한 개인 프로젝트입니다. 프로기사의 실전 기보를 한 수씩 따라가고, 궁금한 착수를 질문하면서 정석·행마·사활 같은 개념을 배워가는 학습 도구를 목표로 합니다.
+Python·Streamlit으로 만든 로컬 바둑 학습 도구입니다. 대량의 기보를 수집하기보다는 관심 있는 대국을 천천히 복기하며 바둑 개념을 공부하는 데 초점을 맞췄습니다.
 
-> **개발 현황 (2026-11-14)**  
-> Phase 1~3의 **초기 소스 코드와 테스트가 GitHub에 등록**되었습니다. Windows의 **SGF 기보 뷰어 화면 표시와 Ollama 모델 다운로드**는 확인했습니다. 자동 재생·KataGo·RAG 전체 동작은 **검증 중**입니다.  
-> 프로젝트는 **Private** 저장소로 운영합니다.
+> **구현 기준: 2026-11-14 / Private GitHub `main`**  
+> 최신 코드는 저장소에 반영되어 있습니다. Windows에서 SGF 기보와 바둑판 표시를 확인한 적은 있지만, 최신 사이드바 UI·CWI HTTPS·KataGo 실분석·답변 속도의 통합 검증은 아직 완료되지 않았습니다.
 
-## 먼저 읽기
+## 현재 기능
 
-| 문서 | 내용 |
+| 기능 | 설명 |
 | --- | --- |
-| **[Windows에서 실행하기](docs/SETUP_WINDOWS.md)** | 처음 설치부터 Streamlit 실행, Ollama 오류 해결까지 |
-| **[Phase 1~3 개발 기록](docs/DEVELOPMENT_LOG.md)** | 왜 만들었는지, 단계별로 무엇을 구현했는지, 남은 검증 |
-| **[기술 설계와 확장 계획](docs/ARCHITECTURE.md)** | SGF·KataGo·RAG 역할 분리, 한계, Phase 4 |
+| 기보 선택 | PC의 SGF 선택, SGF 업로드, CWI 공식 원본 SGF URL 직접 연결 |
+| 자동 복기 | 이전·다음·수순 이동, 재생/일시정지, **2초마다 한 수** |
+| KataGo 착수 분석 | 수를 두기 직전 국면에서 흑 승률·예상 점수 차이·AI 추천 수 계산 |
+| 바둑 학습 채팅 | **16개 학습 노트 기반 빠른 답변 전용**, 관련 노트 내용 일부 표시 |
+| 학습 자료 확인 | 사이드바에서 6개 주제 미리 보기, 전체 16개 목록 펼치기 |
+| 개인 학습 기록 | 미구현 (향후 검토) |
 
-## 이 프로젝트로 하고 싶은 것
+**챗봇은 생성형 AI와 다릅니다.** 현재 채팅은 `knowledge/*.md` 파일을 직접 조회해 관련 문장을 보여주며 **Qwen·Ollama·ChromaDB 호출 없이** 동작합니다. 실전 수읽기·승률·최선 수에 대한 분석은 **KataGo**가 담당합니다.
 
-1. **프로 바둑 복기:** CWI의 프로기사 SGF 기보를 CWI 원본 링크에서 내려받아 SGF 업로드로 불러와 **자동 재생·일시정지·수순 탐색**으로 공부하기
-2. **AI 착수 분석:** KataGo로 선택한 국면의 형세와 추천 후보 수 확인
-3. **대화형 바둑 공부:** EmbeddingGemma로 관련 바둑 개념을 검색하고 Qwen에게 한국어 설명 듣기
-4. **나만의 학습 기록:** 궁금했던 수, 배운 내용, 반복 실수를 따로 저장하기 *(Phase 4 예정)*
+## Windows에서 바로 실행하기
 
-## 서비스 흐름
-
-```text
-CWI 프로 기보 (SGF)
-   ↓  sgfmill
-19×19 기보 뷰어 ── 선택한 착수 ──→ KataGo (형세·후보 수 분석)
-   │                                  │
-   └──────── 질문/현재 장면 ──────────┤
-                                      ▼
-바둑 학습 노트 → EmbeddingGemma 2 → ChromaDB에서 관련 개념 검색
-                                      │
-                                      ▼
-                          Qwen3 한국어 RAG 해설
-                           + 참고 문서 출처 표시
-```
-
-KataGo 분석은 **선택 사항**입니다. 설치하지 않아도 기보 뷰어와 바둑 개념 RAG는 사용할 수 있도록 설계했습니다. 단, 엔진 분석 없이 구체적인 승률이나 '프로기사의 실제 의도'를 단정하지 않습니다.
-
-## 자동 복기 기능 (2026-11-14 추가)
-
-SGF 기보가 열리면 바둑판 위에서 **▶ 재생 / ⏸ 일시정지 / ⏮ 이전 / ⏭ 다음** 버튼을 사용할 수 있습니다. **재생 간격은 2초로 고정**하여 한 수씩 진행합니다. 속도 선택 메뉴는 없습니다. 마지막 수에 도달하면 자동으로 정지하고, 슬라이더로 이동하면 재생을 중단합니다. **분석과 질문은 일시정지 상태에서** 진행하도록 설계했습니다.
-
-자동 재생은 Streamlit fragment 기반으로 갱신합니다. 실행 검증은 사용자 Windows 환경에서 아직 필요합니다. 제어 로직은 `src/playback.py`, 테스트는 `tests/test_playback.py`에 분리했습니다.
-
-## SGF 업로드와 CWI 원본 기보 직접 연결
-
-왼쪽 **기보 불러오기 → SGF 업로드**에서 원하는 방식을 선택하세요.
-
-- **CWI 원본에서 바로 열기:** 이세돌–알파고 1·4·5국의 SGF 원본을 선택하거나 CWI `.sgf` 원본 URL을 붙여넣고 **이 기보로 복기 시작**을 누르면 바둑판에 바로 나타납니다. 파일을 수동 다운로드하거나 따로 업로드하지 않아도 됩니다.
-- **내 컴퓨터 파일 업로드:** 기존에 다운로드한 `F1.sgf` 등의 파일을 불러옵니다.
-- **CWI 전체 기보 목록 보기:** 공식 아카이브로 이동해 다른 기보를 찾아볼 수 있습니다.
-
-CWI 직접 불러오기는 원본 사이트의 **HTTPS SGF 파일 URL만 허용**하고, 최대 2MB까지 읽어 유효한 SGF인지 확인합니다. 외부 서버 접속이 실패하면 PC 파일 업로드를 이용하세요. 원본 SGF는 브라우저 세션에서 사용하고 GitHub에 업로드하지 않습니다.
-
-## 간단한 화면과 빠른 바둑 질문 (2026-11-14)
-
-사이드바는 **기보 선택 / AI 착수 분석 / AI 학습 자료**의 세 카드로 표시합니다. 사용하던 SGF 불러오기·KataGo 설정·규칙/덤·학습 자료 등록 기능은 유지하고, 상세 설정만 접어서 보여줍니다. 0수에서 나타나던 **첫 수로 이동하라는 파란 안내 박스는 제거**했습니다.
-
-**바둑 AI에게 물어보기**는 **학습 노트 기반 빠른 답변 전용**입니다. `knowledge/*.md`에 보관된 16개 로컬 바둑 노트에서 질문과 관련된 개념의 원문 일부를 즉시 표시합니다. 질문은 Ollama·ChromaDB에 보내지 않으며, 답변 방식 선택이나 Qwen의 실시간 생성 모드는 챗봇 화면에서 제거했습니다. 출처 문서는 표시됩니다.
-
-이는 생성형 AI의 새 해설이나 현재 국면의 실전 수읽기가 아닙니다. 승률과 착수 추천은 별도 **KataGo 착수 분석**을 사용하세요. 기존 Ollama/RAG 실험용 모듈과 ChromaDB 학습 자료 관리 기능은 저장소에 남아 있지만, 현재 챗봇 답변에는 사용되지 않습니다.
-
-아직 Windows PC에서 실제 속도와 브라우저 레이아웃의 동작 검증을 수행하지 않았습니다.
-
-## 사이드바와 AI 학습 자료 (개인 학습형 화면)
-
-사이드바는 **01 · 기보 선택 → 02 · AI 착수 분석 → 03 · AI 학습 자료** 순서로 단순화했습니다. KataGo 실행 파일·탐색 횟수와 대국 규칙·덤은 접힌 상세 메뉴에서 변경합니다. 오른쪽 착수 분석에는 **실제 착수와 AI 추천을 한 번씩만** 표시하며, 나머지 후보 수와 변화도는 펼쳐서 봅니다.
-
-바둑 기본 학습 노트는 기존 10개에 **선수·후수, 패, 빅, 끝내기, 실리·세력, 공격·수비** 6개를 추가하여 총 16개를 소스에 준비했습니다. 사이드바는 **보유한 학습 노트 수**와 **ChromaDB에 검색용으로 등록된 수**를 구분합니다. 두 수가 다르면 **학습 자료 관리 → AI 검색 자료 동기화**를 눌러 새 자료를 등록하세요. 임베딩 모델이 실행되어야 동기화가 완료되며, 단순히 문서가 GitHub에 추가되었다고 기존 로컬 색인이 자동으로 늘어나지는 않습니다.
-
-**CWI SSL 인증 오류:** Python의 일반 인증서 경로 대신 `truststore`를 사용해 Windows가 신뢰하는 인증서 저장소를 사용하도록 했습니다. HTTPS 인증서 검증을 해제하지 않습니다. 접속이 실패하면 CWI에서 파일을 직접 받아 **내 컴퓨터 파일 업로드**를 사용하세요. `pip install -r requirements.txt`로 새 의존성을 설치해야 합니다.
-
-## 착수 분석을 쉽게 읽는 법
-
-**🟠 주황 테두리**는 프로기사가 실제로 둔 착수, **🔵 파란 테두리**는 KataGo가 그 수를 두기 직전 국면에서 가장 우선 추천한 착수입니다. 오른쪽의 비교 카드에는 두 위치를 별도로 표시합니다. 실제 수와 AI 추천 수가 달라도 바로 실수라는 뜻은 아닙니다. 승률 손실을 판단하려면 착수 전후 국면을 추가로 비교해야 합니다.
-
-## KataGo 경로 저장과 CPU 빠른 분석
-
-왼쪽 **KataGo (local)**의 경로는 Windows 사용자 폴더에서 자동 제안합니다. `KataGo executable`은 `~/KataGo/katago.exe`, 경량 모델은 `~/Downloads/kata1-b10c128-s1141046784-d204142634.txt.gz`, 분석 설정은 프로젝트의 `configs/analysis_local.cfg`가 기본값입니다. 기존 대형 모델을 저장했던 경우 새 경량 모델 경로로 자동 전환합니다. 필요할 때 경로를 수정하고 **KataGo 설정 저장**을 누르세요. 저장 위치는 `data/local/katago_settings.json`이며 Git에서 제외됩니다. 따라서 개인 PC의 설치 경로가 원격 저장소에 업로드되지 않습니다.
-
-분석 방문 수는 **10회가 기본값**입니다(선택: 5/10/25/50/100). Intel 내장 그래픽 + CPU용 Eigen KataGo에서는 5~10으로 먼저 테스트하세요. 같은 기보·국면·규칙·덤·엔진·모델·방문 수로 재분석하면 Streamlit 서버 메모리 캐시를 재사용합니다. 앱을 재시작하거나 다른 국면을 분석하면 엔진을 다시 시작해야 합니다.
-
-**경량 모델 교체 (Intel UHD Graphics / CPU):** 공식 KataGo `kata1-b10c128-s1141046784-d204142634.txt.gz` 모델을 사용합니다. 기존 대형 `.bin.gz` 대신 PC의 `Downloads`에 새 `.txt.gz`를 내려받은 후, 앱 왼쪽 **Neural net model path**에 전체 경로를 입력하고 **KataGo 설정 저장**을 클릭하세요. `Maximum visits`는 우선 **5 또는 10**으로 설정합니다. 새 모델로 실제 KataGo 분석이 성공한 후 기존 큰 가중치 파일을 삭제할 수 있습니다. 모델 파일은 GitHub에 추가하지 않습니다. [공식 모델 목록](https://katagotraining.org/networks/), [경량 모델 직접 링크](https://media.katagotraining.org/uploaded/networks/models/kata1/kata1-b10c128-s1141046784-d204142634.txt.gz).
-
-**중요:** 대형 KataGo 신경망의 첫 실행과 CPU 추론 자체는 여전히 느릴 수 있습니다. 방문 수를 줄여도 신경망 로딩 시간이 사라지지는 않습니다. 충분히 빨라지지 않으면 [KataGo 공식 모델 목록](https://katagotraining.org/networks/)에서 더 작은 네트워크 모델을 선택해야 합니다. 실제 성능은 사용자 PC에서 검증해야 합니다.
-
-## 단계별 개발 현황
-
-| 단계 | 구현한 코드 | 아직 필요한 작업 |
-| --- | --- | --- |
-| **Phase 1 — 기보 뷰어** | SGF 파싱, 바둑판, 수순 탐색, 자동 재생·일시정지·2초 고정 간격, CWI 다운로드 스크립트 | 자동 재생 실제 동작 검증 |
-| **Phase 2 — KataGo** | 분석 요청, 후보 수 3개, 변화도와 흑 승률 표시 | 엔진·신경망 설치 및 실제 분석 검증 |
-| **Phase 3 — RAG 챗봇** | EmbeddingGemma 임베딩, ChromaDB 검색, Qwen 한국어 채팅, 바둑 노트 16개 | 실제 검색·답변 검증 |
-| **Phase 4 — 학습 기록** | 미구현 | 기보 북마크, 복습 기록, SQLite 설계 |
-
-## 기술 스택
-
-| 분야 | 도구 | 담당 역할 |
-| --- | --- | --- |
-| 웹 화면 | Python, Streamlit | 바둑판·분석 패널·챗봇 |
-| 기보 처리 | sgfmill, SVG | SGF 파싱과 수순 재생 |
-| 바둑 분석 | KataGo | 추천 수, 형세, 대안 변화도 |
-| 임베딩 | EmbeddingGemma 2 270M (Ollama) | 바둑 지식 벡터화 |
-| 벡터 검색 | ChromaDB | 질문과 관련된 개념 찾기 |
-| 답변 생성 | Qwen3 4B Instruct (Ollama) | 한국어 학습 설명 |
-| 테스트 | pytest | 주요 모듈 단위 테스트 |
-
-## GitHub 코드 동기화 후 실행 (Windows)
-
-최초 설치를 마친 PC에서는 프로젝트 폴더의 `start_baduk.ps1`를 실행하세요. 시작할 때 **GitHub Private 저장소의 `main` 최신 코드를 fast-forward 방식으로 내려받고**, 의존성을 확인한 뒤 Streamlit을 시작합니다.
+이미 설치한 PC에서 실행 중인 Streamlit을 `Ctrl + C`로 종료한 뒤 PowerShell에서:
 
 ```powershell
 cd "C:\Windows\System32\baduk-insight"
-.\start_baduk.ps1
-```
-
-**첫 실행에서는 새 스크립트 자체를 받아야 하므로** 기존 프로젝트에서 한 번만 `git pull --ff-only origin main`을 먼저 실행하세요. 이후에는 위 스크립트 하나로 실행할 수 있습니다. PowerShell 정책 때문에 차단되면 `powershell -NoProfile -ExecutionPolicy Bypass -File .\start_baduk.ps1`로 해당 실행에 한해 스크립트를 실행할 수 있습니다.
-
-이 방식은 **앱을 시작할 때만 코드 동기화**합니다. GitHub 변경 사항이 실행 중인 앱에 실시간 반영되거나 로컬 변경 사항이 GitHub에 자동 업로드되지는 않습니다. 로컬 코드 변경이 있으면 덮어쓰지 않고 중단합니다. 개인 SGF 기보, ChromaDB, KataGo 신경망 가중치, Ollama 모델은 PC에 보관하며 GitHub로 업로드하지 않습니다.
-
-## 빠른 실행 (Windows PowerShell)
-
-**Ollama를 먼저 설치하지 않아도 SGF 뷰어부터 실행할 수 있습니다.**
-
-```powershell
-Set-Location $HOME
-New-Item -ItemType Directory -Force -Path "$HOME\Projects" | Out-Null
-Set-Location "$HOME\Projects"
-git clone https://github.com/areum-hub/baduk-insight.git
-Set-Location .\baduk-insight
-py -m venv .venv
+git pull --ff-only origin main
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe scripts\download_cwi_samples.py
 .\.venv\Scripts\python.exe -m streamlit run app.py
 ```
 
-브라우저에서 **http://localhost:8501** 을 열어 왼쪽 **Download CWI games**를 클릭하세요. 다운로드 성공 시 바둑판을 볼 수 있습니다. 다운로드 오류가 뜨면 **Upload SGF**에서 직접 받은 기보 파일을 선택하세요. 코드와 다운로드 스크립트가 실제 PC에서 정상 실행되는지는 아직 검증이 필요합니다.
+접속: **http://localhost:8501**
 
-**RAG 챗봇을 사용하려면** [Ollama](https://ollama.com/download/windows)를 설치하고 새 PowerShell에서:
+기존 `start_baduk.ps1`이 있으면 `.\start_baduk.ps1`을 실행해 소스 업데이트·설치·앱 시작을 순서대로 시도할 수도 있습니다. **Private 저장소 인증에 실패했다면 새 코드가 동기화되지 않습니다.** GitHub 로그인 및 권한을 확인해야 하며, 파일을 강제 초기화해서는 안 됩니다.
 
-```powershell
-ollama --version
-ollama pull embeddinggemma-2:270m
-ollama pull qwen3:4b-instruct
-ollama list
-```
+처음 설치할 때는 [Windows 실행 가이드](docs/SETUP_WINDOWS.md)를 참조하세요. 현재 프로젝트 위치 `C:\Windows\System32\baduk-insight`는 기존 사용자 PC에서 확인된 경로입니다. Windows 시스템 폴더가 아닌 사용자 작업 폴더로 옮기는 편이 장기적으로 안전하지만, 이미 설치된 파일의 위치를 확인한 후 진행해야 합니다.
 
-앱 왼쪽의 **Build / refresh knowledge index**를 눌러 학습 노트 10개를 색인하세요. 자세한 단계와 문제 해결은 [Windows 실행 가이드](docs/SETUP_WINDOWS.md)에 정리했습니다.
+## 화면 사용법
 
-### 현재 발견한 설치 문제
+### 01 · 기보 선택
 
-Windows에서 최초에는 `ollama` 명령 인식 오류가 발생했지만, 이후 **Ollama 설치와 두 모델 다운로드는 `ollama list` 화면으로 확인**했습니다. 아직 실제 RAG 색인·답변 품질은 검증되지 않았습니다. [해결 방법 보기](docs/SETUP_WINDOWS.md#4-ollama-설치--이전-오류-해결).
+사이드바의 첫 번째 카드에서 다음 중 하나를 사용합니다.
 
-## 폴더 구조
+- **내 기보에서 선택:** `data/sgf/`에 이미 저장한 SGF 기보 선택
+- **SGF 업로드 → CWI 원본에서 바로 열기:** 이세돌–알파고 1·4·5국 또는 CWI의 직접 `.sgf` URL로 불러온 후 **이 기보로 복기 시작**
+- **SGF 업로드 → 내 컴퓨터 파일 업로드:** 컴퓨터에 내려받은 `.sgf` 파일 불러오기
+
+[CWI 공식 기보 아카이브](https://homepages.cwi.nl/~aeb/go/games/games/)는 외부 웹사이트입니다. 앱에서 SSL 인증서 검증에 실패하면 CWI 웹페이지에서 SGF를 다운로드한 후 **내 컴퓨터 파일 업로드**로 불러올 수 있습니다. HTTPS 검증을 끄지 않습니다.
+
+기보를 선택하면 **⏮ 이전 / ▶ 재생·⏸ 일시정지 / ⏭ 다음 / 수순 슬라이더**로 복기합니다. 재생 간격은 **2초 고정**이며 수동 이동 시 재생을 중단합니다.
+
+### 02 · AI 착수 분석 (KataGo 별도 설치)
+
+원하는 수로 이동하여 **이 장면 AI 분석하기**를 누릅니다. 표시된 수가 N수라면 **N수를 두기 직전의 판**을 분석합니다.
+
+- **🟠 실제 착수 / 🔵 KataGo 1순위 추천**을 비교합니다.
+- **다른 후보 수와 예상 진행 확인**을 펼쳐 대안 수순을 볼 수 있습니다.
+- 승률과 예상 점수 차이는 **흑 기준** 엔진 계산값입니다.
+- 실제 착수와 추천 위치가 다르다고 곧바로 실수라고 판단하면 안 됩니다.
+
+KataGo 실행 파일 및 신경망 가중치는 GitHub에 포함되지 않습니다. 앱은 `%USERPROFILE%\KataGo\katago.exe` 및 `%USERPROFILE%\Downloads\kata1-b10c128-s1141046784-d204142634.txt.gz`를 기본 경로로 제안합니다. 사이드바의 **엔진 설정 및 분석 강도**에서 실제 경로를 확인하고 PC에 저장할 수 있으며, **AI 탐색 횟수**의 기본값은 5입니다.
+
+**대국 규칙 · 덤**은 접힌 상세 설정에 있습니다. SGF에 원본 규칙 정보가 없으면 중국식은 실제 대국 규칙으로 확인된 값이 아닌 **임시 기본값**입니다.
+
+### 03 · AI 학습 자료와 채팅
+
+프로젝트의 `knowledge/` 폴더에는 한국어 바둑 기본 학습 노트 **16개**가 준비되어 있습니다. 연결과 끊음, 포석, 축과 장문, 선수·후수, 패, 빅, 끝내기, 실리·세력, 공격·수비 등의 주제를 다룹니다.
+
+사이드바의 세 번째 카드는 **학습 노트 총 개수**, **6개 주제 미리 보기**, **전체 학습 주제 목록**, 기존의 **AI 검색 등록 문서 수**를 표시합니다.
+
+**바둑 AI에게 물어보기**에서 질문 예시를 선택하거나 직접 입력하면 관련 노트의 내용을 바로 보여줍니다. **답변 아래에 '참고한 학습 노트' 펼침 박스는 표시하지 않으며, 학습 주제 목록은 사이드바에 모아뒀습니다.**
+
+질문 예: **“돌의 연결은 왜 중요할까?”**, **“축과 장문은 어떻게 다를까?”**
+
+현재 채팅은 **빠른 답변만 제공**합니다. 질문에 맞는 노트가 없으면 그 한계를 안내하며, 현재 판의 정밀한 수읽기를 만들어내지는 않습니다. 현재 장면을 바꾸면 대화 이력은 새로 시작합니다.
+
+사이드바의 **AI 검색 자료 동기화** 기능은 이전 RAG 실험의 ChromaDB 색인을 업데이트하는 기능으로 남겨두었습니다. 이 색인은 **현재 빠른 답변에는 필요하지 않으며**, 이를 갱신하려면 로컬 Ollama 임베딩 모델이 필요합니다.
+
+## 프로젝트 구조
 
 ```text
-baduk-insight/
-├── app.py                         # Streamlit 앱
-├── requirements.txt               # Python 의존성
-├── src/
-│   ├── sgf_service.py             # 기보 파싱 및 재생
-│   ├── board_svg.py               # 바둑판 SVG
-│   ├── katago_client.py           # KataGo 분석 요청/응답
-│   ├── local_settings.py          # 로컬 KataGo 설정 저장
-│   ├── ollama_client.py           # 임베딩과 채팅 요청
-│   └── rag_pipeline.py            # 문서 색인·검색·프롬프트
-├── knowledge/                     # 직접 작성한 기초 바둑 학습 노트 10개
-├── scripts/download_cwi_samples.py
-├── configs/analysis_local.cfg
-├── tests/                         # 단위 및 모의 연동 테스트
-├── docs/
-│   ├── SETUP_WINDOWS.md
-│   ├── DEVELOPMENT_LOG.md
-│   └── ARCHITECTURE.md
-└── data/                           # 로컬 기보/색인 (Git에서 제외)
+CWI 공식 SGF / PC 파일
+        ↓
+  sgfmill 파싱
+        ↓
+Streamlit + SVG 바둑판 ─── 2초 자동 복기
+        │
+        ├─ KataGo (선택 설치) → 승률·집 차이·추천 수
+        │
+        └─ 공부 질문 → knowledge/*.md (16개)
+                               ↓
+                      빠른 노트 발췌 답변
 ```
 
-## 데이터와 주의사항
+| 경로 | 역할 |
+| --- | --- |
+| `app.py` | Streamlit 메인 대시보드 |
+| `src/sgf_service.py`, `src/playback.py`, `src/board_svg.py` | 수순 파싱·자동 재생·바둑판 |
+| `src/cwi_source.py` | 공식 CWI SGF 다운로드·검증 |
+| `src/katago_client.py`, `src/local_settings.py` | KataGo 분석·PC별 설정 저장 |
+| `src/fast_study.py`, `knowledge/` | 학습 노트 기반 빠른 답변과 원문 자료 |
+| `src/rag_pipeline.py`, `src/ollama_client.py` | 이전 EmbeddingGemma·ChromaDB·Qwen 실험 코드(현 채팅에는 미사용) |
+| `configs/analysis_local.cfg` | KataGo 분석 설정 |
+| `start_baduk.ps1`, `requirements.txt` | Windows 실행 |
+| `tests/`, `docs/` | 테스트·개발 문서 |
 
-- 기보 출처: [CWI Go Games Archive](https://homepages.cwi.nl/~aeb/go/games/games/) — 실제 대국의 SGF를 내려받아 개인 학습에 활용합니다.
-- `knowledge/`의 학습 노트는 이 프로젝트를 위해 작성한 기초 설명 자료입니다. 프로기사의 실제 인터뷰나 공식 기보 주석이 아닙니다.
-- 바둑판은 KataGo가 평가하고, RAG는 바둑 **개념을 검색**하며, LLM은 확인한 정보에 기반해 설명하는 역할입니다.
-- 모델 가중치, 다운로드한 기보, 개인 학습 데이터 및 로컬 벡터 DB는 저장소에 포함하지 않습니다.
-- 프로젝트 자체 코드에는 저장소의 MIT LICENSE를 적용합니다. 외부 SGF 및 제3자 해설의 이용 조건은 별도로 확인합니다.
+## 개발과 검증
 
----
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q
+```
 
-**핵심 목표:** 바둑을 취미로 즐기면서 AI 모델 연동, RAG 설계, 데이터 처리, 개인용 서비스를 직접 구현하고 공부하는 것입니다.
+일부 테스트는 KataGo·Ollama를 가짜 응답으로 대신합니다. **테스트 코드가 존재한다는 것과 Windows에서 실제 기능이 검증된 것은 다릅니다.** 최신 Streamlit 화면·KataGo 속도·CWI HTTPS 연결은 PC에서 직접 확인해야 합니다.
+
+개인 학습 메모, 북마크, 장기 대화 기록은 **아직 구현하지 않았습니다.**
+
+## 개인정보와 기보 데이터
+
+저장소는 **Private**입니다. 개인 SGF, 로컬 ChromaDB 색인, KataGo 가중치·실행 파일, PC별 설정 및 로컬 학습 기록은 GitHub에 올리지 않습니다. `.gitignore`로 로컬 데이터 경로를 제외합니다. CWI 원본 및 제3자 기보·해설의 권리는 별도 확인이 필요합니다.
+
+## 문서
+
+- [Windows 설치·실행·문제 해결](docs/SETUP_WINDOWS.md)
+- [개발 이력 및 검증 상태](docs/DEVELOPMENT_LOG.md)
+- [시스템 구조와 데이터 흐름](docs/ARCHITECTURE.md)
