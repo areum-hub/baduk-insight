@@ -47,7 +47,7 @@ def quick_answer(question: str, notes: list[dict]) -> tuple[str, list[dict]]:
         return (
             "학습 노트에서 질문과 직접 연결되는 개념을 찾지 못했습니다. "
             "축·장문·연결·포석·패·끝내기처럼 구체적인 개념을 질문하거나 "
-            "'AI 자세히 설명'을 이용해 주세요. 현재 바둑판의 정확한 수읽기는 KataGo 분석이 필요합니다.",
+            "현재 바둑판의 정확한 수읽기나 승률은 KataGo 분석에서 확인해 주세요.",
             [],
         )
     note = ranking[0][1]
