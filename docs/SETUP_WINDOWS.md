@@ -196,6 +196,10 @@ Invoke-RestMethod http://127.0.0.1:11434/api/tags
 - `Neural net model path`: 다운로드한 모델 `.bin.gz` 경로
 - `Analysis config path`: 프로젝트의 `configs/analysis_local.cfg` 경로
 
+**경로 저장:** 설치 경로를 입력한 후 **KataGo 설정 저장**을 누르면 `data/local/katago_settings.json`에 PC 전용 설정이 저장되어 앱을 껐다 켜도 유지됩니다. 파일은 `.gitignore`에 포함되어 Private GitHub에도 업로드되지 않습니다.
+
+**Intel UHD Graphics CPU 분석 최적화:** 첫 분석은 **Maximum visits = 5 또는 10**을 권장합니다. 같은 국면과 동일한 설정의 반복 분석은 실행 중인 Streamlit 서버의 메모리 캐시를 활용합니다. 네트워크 로딩 및 CPU 계산이 계속 오래 걸린다면 공식 KataGo 네트워크 목록에서 더 작은 모델을 받아 기존 `.bin.gz` 경로를 바꾸고 다시 저장하세요. 현재 큰 모델은 CPU에서 상당히 오래 걸릴 수 있습니다.
+
 수순 1 이상을 선택하고 **Analyze position before this move**를 누르면 **그 수를 두기 직전의 국면**을 평가하도록 설계되어 있습니다. 규칙(`Rules for KataGo`)과 덤(`Komi`)은 SGF와 일치하는지 확인하세요.
 
 현재 KataGo를 이용한 실제 엔진 분석은 **아직 Windows PC에서 통합 검증 전**입니다. 후보 수와 변화를 설명하는 기능은 있지만, 착수 전후 승률 손실 비교는 아직 구현되지 않았습니다.
