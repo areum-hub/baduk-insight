@@ -1,4 +1,4 @@
-"""Baduk Insight — SGF review + on-demand KataGo analysis (Phase 2)."""
+"""Baduk Insight — SGF, KataGo, and local RAG study chatbot (Phase 3)."""
 import hashlib
 from pathlib import Path
 
@@ -9,6 +9,8 @@ from sgfmill import sgf
 from src.board_svg import render_board
 from src.katago_client import KataGoError, build_query, gtp_coord, run_analysis, top_candidates
 from src.sgf_service import load_sgf, replay
+from src.ollama_client import OllamaError, chat
+from src.rag_pipeline import build_index, build_messages, get_collection, load_notes, retrieve
 
 PROJECT = Path(__file__).resolve().parent
 DATA_DIR = PROJECT / "data" / "sgf"
@@ -16,8 +18,8 @@ DEFAULT_CONFIG = PROJECT / "configs" / "analysis_local.cfg"
 
 st.set_page_config(page_title="Baduk Insight", page_icon="⚫", layout="wide")
 st.title("Baduk Insight")
-st.caption("Personal AI Go learning project | Phase 2: KataGo analysis")
-st.info("현재 단계: SGF 복기 + 선택한 착수의 KataGo 분석. RAG 챗봇과 학습 기록은 이후 구현할 예정입니다.")
+st.caption("Personal AI Go learning project | Phase 3: RAG chatbot")
+st.info("현재 단계: SGF 복기 + KataGo 선택 수 분석 + 로컬 바둑 개념 RAG 학습 챗봇. 개인 학습 기록은 이후 구현 예정입니다.")
 
 available = sorted(DATA_DIR.glob("*.sgf")) if DATA_DIR.exists() else []
 with st.sidebar:
@@ -85,12 +87,32 @@ with st.sidebar:
     komi = st.number_input("Komi", min_value=-20.0, max_value=30.0, value=suggested_komi, step=0.5)
     st.caption(f"SGF RU: {sgf_rules or 'not specified'}; KM: {sgf_property('KM', 'not specified')}")
 
+with st.sidebar:
+    st.divider()
+    st.header("RAG learning (local)")
+    st.caption("Ollama에서 embeddinggemma-2:270m 및 qwen3:4b-instruct 모델을 미리 설치하세요.")
+    if st.button("Build / refresh knowledge index"):
+        try:
+            notes = load_notes()
+            with st.spinner("바둑 개념 임베딩 생성 중..."):
+                indexed = build_index(notes)
+            st.success(f"{indexed}개 학습 문서 색인 완료")
+        except (OllamaError, ValueError, RuntimeError, OSError) as exc:
+            st.error(f"색인 실패: {exc}")
+    try:
+        note_count = get_collection().count()
+        st.caption(f"현재 검색 색인: {note_count}개 학습 문서")
+    except (OSError, RuntimeError, ValueError) as exc:
+        st.warning(f"ChromaDB 초기화 실패: {exc}")
+
 digest = hashlib.sha256(raw).hexdigest()
 if st.session_state.get("game_digest") != digest:
     st.session_state.game_digest = digest
     st.session_state.move_index = 0
     st.session_state.analysis_result = None
     st.session_state.analysis_key = None
+    st.session_state.rag_messages = []
+    st.session_state.rag_scene = None
 
 st.subheader(f"{record.black_player} (Black) vs {record.white_player} (White)")
 st.caption(f"{record.event} | {record.date} | {record.result} | {name}")
@@ -164,6 +186,62 @@ with right:
                 st.caption("이 분석은 해당 수를 평가하기 *전*의 후보 비교입니다. 실수 여부나 승률 손실을 판단하려면 착수 이후 국면도 별도로 비교해야 합니다.")
 
     st.divider()
-    st.markdown("### Next: Phase 3")
-    st.markdown("- EmbeddingGemma 2 / ChromaDB 기반 바둑 개념 검색\n- AI 대화형 복기 설명\n- 개인 학습 기록")
-    st.caption("SGF 메인 수순만 탐색합니다. SGF 변화도(분기)는 아직 표시하지 않습니다.")
+    st.markdown("### AI 바둑 학습 챗봇")
+    st.caption("선택한 국면과 검색한 바둑 학습 문서를 근거로 한국어로 질문하세요.")
+    scene_id = (digest, turn)
+    if st.session_state.get("rag_scene") != scene_id:
+        st.session_state.rag_scene = scene_id
+        st.session_state.rag_messages = []
+    for message in st.session_state.rag_messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+            if message.get("sources"):
+                with st.expander("검색 근거 문서"):
+                    for source in message["sources"]:
+                        st.caption(f"{source['title']} · knowledge/{source['path']}")
+    question = st.chat_input("예: 왜 중앙의 연결이 중요해?")
+    if question:
+        history = list(st.session_state.rag_messages)
+        st.session_state.rag_messages.append({"role": "user", "content": question})
+        with st.chat_message("user"):
+            st.markdown(question)
+        with st.chat_message("assistant"):
+            try:
+                hits = retrieve(question, top_k=3)
+                if not hits:
+                    reply = "검색 색인이 비어 있습니다. 왼쪽에서 'Build / refresh knowledge index'를 먼저 실행해 주세요."
+                    st.markdown(reply)
+                    st.session_state.rag_messages.append({"role": "assistant", "content": reply})
+                else:
+                    current_analysis = (
+                        st.session_state.get("analysis_result")
+                        if turn > 0 and st.session_state.get("analysis_key") ==
+                        (digest, turn, rules, float(komi), visits, binary, model, config)
+                        else None
+                    )
+                    last_move = gtp_coord(record.moves[turn-1][1], record.size) if turn else "none"
+                    scene = {
+                        "game": f"{record.black_player} vs {record.white_player}",
+                        "turn": turn,
+                        "played_move": last_move,
+                        "analysis": current_analysis,
+                    }
+                    prompt = build_messages(question, hits, scene, history)
+                    with st.spinner("근거 문서로 답변 생성 중..."):
+                        reply = chat(prompt)
+                    st.markdown(reply)
+                    with st.expander("검색 근거 문서", expanded=True):
+                        for source in hits:
+                            st.caption(f"{source['title']} · knowledge/{source['path']}")
+                    st.session_state.rag_messages.append({
+                        "role": "assistant", "content": reply,
+                        "sources": [{"title": x["title"], "path": x["path"]} for x in hits],
+                    })
+            except (OllamaError, RuntimeError, ValueError, OSError) as exc:
+                message = f"RAG 답변을 생성하지 못했습니다: {exc}"
+                st.error(message)
+                # Failed turns are not part of chat history.
+                st.session_state.rag_messages.pop()
+
+    st.caption("현재 장면을 변경하면 이 화면의 대화가 새로 시작됩니다. 별도의 장기 학습 기록은 Phase 4 예정입니다.")
+    st.caption("프로기사의 실제 의도는 확인할 수 없으며, AI 설명은 학습 참고용입니다.")
