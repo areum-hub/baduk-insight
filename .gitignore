@@ -229,5 +229,8 @@ analysis_logs/
 *.pt
 *.pth
 
+# Local per-PC KataGo configuration and analysis cache
+data/local/
+
 # Local vector database (Phase 3)
 data/chroma/
