@@ -11,6 +11,7 @@ from src.katago_client import KataGoError, build_query, gtp_coord, run_analysis,
 from src.sgf_service import load_sgf, replay
 from src.ollama_client import OllamaError, chat
 from src.rag_pipeline import build_index, build_messages, get_collection, load_notes, retrieve
+from scripts.download_cwi_samples import download_samples
 
 PROJECT = Path(__file__).resolve().parent
 DATA_DIR = PROJECT / "data" / "sgf"
@@ -24,6 +25,7 @@ st.info("현재 단계: SGF 복기 + KataGo 선택 수 분석 + 로컬 바둑 �
 available = sorted(DATA_DIR.glob("*.sgf")) if DATA_DIR.exists() else []
 with st.sidebar:
     st.header("Load a game")
+    st.caption(f"Local SGF files: {len(available)}")
     source = st.radio("Source", ["Local CWI samples", "Upload SGF"])
     raw = None
     name = ""
@@ -31,13 +33,24 @@ with st.sidebar:
         uploaded = st.file_uploader("Choose SGF", type=["sgf"])
         if uploaded is not None:
             raw, name = uploaded.getvalue(), uploaded.name
-    elif available:
-        selected = st.selectbox("Professional game", available, format_func=lambda p: p.name)
-        if selected:
-            raw, name = selected.read_bytes(), selected.name
     else:
-        st.warning("No local SGFs. Run: python scripts/download_cwi_samples.py")
-    st.markdown("[CWI archive](https://homepages.cwi.nl/~aeb/go/games/games/)")
+        if not available:
+            st.warning("아직 로컬 SGF 기보가 없습니다.")
+            if st.button("Download CWI games", type="primary"):
+                with st.spinner("CWI 기보 다운로드 중..."):
+                    good, errors = download_samples()
+                for path in good:
+                    st.success(f"기보 준비 완료: {path.name}")
+                for error in errors:
+                    st.error(f"다운로드 실패: {error}")
+                if good:
+                    st.rerun()
+            st.caption("다운로드가 실패하면 Upload SGF를 선택하고 직접 SGF 파일을 업로드하세요.")
+        else:
+            selected = st.selectbox("Professional game", available, format_func=lambda p: p.name)
+            if selected:
+                raw, name = selected.read_bytes(), selected.name
+    st.markdown("[CWI archive](https://homepages.cwi.nl/~aeb/go/games/games/AlphaGo/)")
 
     st.divider()
     st.header("KataGo (local)")
@@ -48,7 +61,7 @@ with st.sidebar:
     st.caption("분석 실행에는 별도로 설치한 KataGo 실행 파일과 신경망 모델이 필요합니다.")
 
 if raw is None:
-    st.code("python scripts/download_cwi_samples.py\nstreamlit run app.py", language="bash")
+    st.info("왼쪽 Download CWI games 버튼을 누르거나 Upload SGF에서 기보 파일을 불러오세요.")
     st.stop()
 
 try:
