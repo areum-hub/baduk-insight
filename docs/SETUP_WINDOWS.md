@@ -154,6 +154,8 @@ Invoke-RestMethod http://127.0.0.1:11434/api/tags
 
 `Build / refresh knowledge index`는 처음 한 번 필요하고, `knowledge/*.md` 노트를 수정했다면 다시 실행하세요.
 
+> **자동 복기 이용 팁:** 오른쪽 KataGo 분석과 챗봇은 일시정지 후 현재 국면에 대해 이용하세요. 자동 재생이 끝나면 마지막 수에서 정지합니다. 새 기능을 사용하려면 `git pull origin main`으로 최신 파일을 받으세요.
+
 > **KataGo 설치 전에도** SGF 뷰어와 RAG 챗봇은 사용할 수 있습니다. 단, 실제 추천 착수·승률·점수 차이는 KataGo 없이는 제공되지 않습니다.
 
 ## 7. KataGo 분석 사용(선택)
