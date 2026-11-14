@@ -46,6 +46,58 @@ def _post(endpoint: str, payload: dict, timeout: int = 120) -> dict:
     return result
 
 
+def chat_stream(messages: list[dict], model: str = CHAT_MODEL):
+    """Yield Ollama streaming text chunks to show an answer as it is generated.
+
+    Streaming avoids waiting for the entire response before displaying text.
+    Keeping answers short helps CPU-only machines, but first model load may be slow.
+    """
+    if not messages:
+        raise ValueError("Chat messages are empty")
+    payload = {
+        "model": model,
+        "messages": messages,
+        "stream": True,
+        "think": False,
+        "keep_alive": "15m",
+        "options": {"temperature": 0.2, "num_predict": 180, "num_ctx": 3072},
+    }
+    request = Request(
+        OLLAMA_BASE + "/api/chat",
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    received = False
+    try:
+        with urlopen(request, timeout=90) as response:
+            for raw in response:
+                if not raw.strip():
+                    continue
+                try:
+                    event = json.loads(raw.decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                    raise OllamaError("Ollama 스트리밍 응답이 올바르지 않습니다.") from exc
+                if event.get("error"):
+                    raise OllamaError(f"Ollama 오류: {event['error']}")
+                message = event.get("message") or {}
+                chunk = message.get("content", "") if isinstance(message, dict) else ""
+                if chunk:
+                    received = True
+                    yield chunk
+                if event.get("done"):
+                    break
+    except HTTPError as exc:
+        raise OllamaError(f"Ollama HTTP 오류 ({exc.code}). 설치한 모델을 확인하세요.") from exc
+    except (URLError, TimeoutError, OSError) as exc:
+        raise OllamaError(
+            "Ollama 응답이 지연되거나 연결에 실패했습니다. "
+            "Ollama 실행 상태와 메모리 사용량을 확인하세요."
+        ) from exc
+    if not received:
+        raise OllamaError("Ollama가 답변 텍스트를 반환하지 않았습니다.")
+
+
 def embed_texts(texts: list[str], model: str = EMBEDDING_MODEL) -> list[list[float]]:
     """Return one embedding for each input using the local Ollama /api/embed."""
     if not texts:
