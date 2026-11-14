@@ -5,7 +5,21 @@ def _stars(size: int):
     axis = {19: (3, 9, 15), 13: (3, 6, 9), 9: (2, 4, 6)}.get(size, ())
     return [(r, c) for r in axis for c in axis]
 
-def render_board(board, last_move=None) -> str:
+def _gtp_to_point(move, size):
+    """Convert a KataGo GTP move (e.g. F5) to a board location."""
+    columns = "ABCDEFGHJKLMNOPQRSTUVWXYZ"[:size]
+    if not isinstance(move, str) or move.upper() in ("PASS", "RESIGN"):
+        return None
+    move = move.upper().strip()
+    if len(move) < 2 or move[0] not in columns or not move[1:].isdigit():
+        return None
+    row = int(move[1:]) - 1
+    if not 0 <= row < size:
+        return None
+    return (row, columns.index(move[0]))
+
+
+def render_board(board, last_move=None, ai_suggestion=None) -> str:
     size = board.side
     square = 28 if size == 19 else 37
     pad = 32
@@ -38,5 +52,24 @@ def render_board(board, last_move=None) -> str:
             if last_move == (row, col):
                 mark = "#ffffff" if colour == "b" else "#b01924"
                 lines.append(f'<circle cx="{x}" cy="{y}" r="4" fill="{mark}"/>')
+    # Blue ring = AI's first candidate. Orange ring = played move.
+    # Draw suggestion after the stones, but don't obscure the underlying piece.
+    suggestion = _gtp_to_point(ai_suggestion, size)
+    if suggestion is not None:
+        row, col = suggestion
+        x, y = pad + col * square, pad + (size - 1 - row) * square
+        lines.append(
+            f'<circle cx="{x}" cy="{y}" r="{square * 0.42:.1f}" '
+            'fill="none" stroke="#2563eb" stroke-width="4" '
+            'aria-label="AI recommended point"/>'
+        )
+    if last_move is not None:
+        row, col = last_move
+        x, y = pad + col * square, pad + (size - 1 - row) * square
+        lines.append(
+            f'<circle cx="{x}" cy="{y}" r="{square * 0.33:.1f}" '
+            'fill="none" stroke="#f97316" stroke-width="2.5" '
+            'aria-label="Played point"/>'
+        )
     lines.append("</svg>")
     return "\n".join(lines)
