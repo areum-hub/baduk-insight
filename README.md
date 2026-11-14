@@ -48,9 +48,13 @@ SGF 기보가 열리면 바둑판 위에서 **▶ 재생 / ⏸ 일시정지 / �
 
 자동 재생은 Streamlit fragment 기반으로 갱신합니다. 실행 검증은 사용자 Windows 환경에서 아직 필요합니다. 제어 로직은 `src/playback.py`, 테스트는 `tests/test_playback.py`에 분리했습니다.
 
+## SGF 업로드와 샘플 3판 받기
+
+왼쪽 **Load a game**의 `Upload SGF`에서도 **샘플 기보 다운로드** 버튼과 **CWI 기보 원본 보기** 링크를 제공합니다. 버튼을 누르면 CWI 이세돌–알파고 1·4·5국을 `data/sgf/`에 내려받고 `Local CWI samples`로 전환하여 선택할 수 있습니다. 이미 내려받은 정상 SGF는 다시 받지 않으며, 로컬에 있는 `F1.sgf` 등의 개인 기보도 유지합니다. 외부 웹사이트나 네트워크 문제로 실패하면 앱에 오류를 표시하고, `Upload SGF`로 직접 파일을 불러올 수 있습니다. <https://homepages.cwi.nl/~aeb/go/games/games/AlphaGo/>
+
 ## KataGo 경로 저장과 CPU 빠른 분석
 
-왼쪽 **KataGo (local)**에서 `KataGo executable`과 `Neural net model path`, 설정 파일 경로를 입력하고 **KataGo 설정 저장** 버튼을 누르세요. 저장 위치는 `data/local/katago_settings.json`이며 Git에서 제외됩니다. 따라서 개인 PC의 설치 경로가 원격 저장소에 업로드되지 않습니다.
+왼쪽 **KataGo (local)**의 경로는 Windows 사용자 폴더에서 자동 제안합니다. `KataGo executable`은 `~/KataGo/katago.exe`, 경량 모델은 `~/Downloads/kata1-b10c128-s1141046784-d204142634.txt.gz`, 분석 설정은 프로젝트의 `configs/analysis_local.cfg`가 기본값입니다. 기존 대형 모델을 저장했던 경우 새 경량 모델 경로로 자동 전환합니다. 필요할 때 경로를 수정하고 **KataGo 설정 저장**을 누르세요. 저장 위치는 `data/local/katago_settings.json`이며 Git에서 제외됩니다. 따라서 개인 PC의 설치 경로가 원격 저장소에 업로드되지 않습니다.
 
 분석 방문 수는 **10회가 기본값**입니다(선택: 5/10/25/50/100). Intel 내장 그래픽 + CPU용 Eigen KataGo에서는 5~10으로 먼저 테스트하세요. 같은 기보·국면·규칙·덤·엔진·모델·방문 수로 재분석하면 Streamlit 서버 메모리 캐시를 재사용합니다. 앱을 재시작하거나 다른 국면을 분석하면 엔진을 다시 시작해야 합니다.
 
