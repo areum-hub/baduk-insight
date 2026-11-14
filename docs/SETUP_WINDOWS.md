@@ -99,6 +99,8 @@ PowerShell 활성화 정책 문제를 피하기 위해 가상환경의 `python.e
 
 원본 SGF 기보 데이터는 저장소에 커밋하지 않습니다.
 
+**앱에서 샘플 직접 받기:** `Upload SGF`를 선택해도 **샘플 기보 다운로드** 버튼과 **CWI 기보 원본 보기** 링크가 나타납니다. 버튼을 누르면 이세돌–알파고 1·4·5국의 샘플 SGF가 로컬 `data/sgf/`에 저장되고 `Local CWI samples`로 전환됩니다. 이미 있는 사용자 기보는 삭제하지 않습니다. 인터넷 연결이 없으면 오류가 표시되며 업로드 방식으로 대체할 수 있습니다.
+
 ## 4. Ollama 설치 — 이전 오류 해결
 
 이전에 아래와 같은 메시지가 나타났습니다:
@@ -195,6 +197,8 @@ Invoke-RestMethod http://127.0.0.1:11434/api/tags
 - `KataGo executable`: 실제 `katago.exe` 경로
 - `Neural net model path`: 다운로드한 모델 `.bin.gz` 경로
 - `Analysis config path`: 프로젝트의 `configs/analysis_local.cfg` 경로
+
+**경로 자동 고정:** 앱이 Windows 사용자 폴더를 기준으로 실행 파일 `~/KataGo/katago.exe`, 소형 모델 `~/Downloads/kata1-b10c128-s1141046784-d204142634.txt.gz`, 프로젝트 분석 설정을 자동 제안합니다. 기존 대형 모델 설정은 소형 모델로 전환합니다. 저장 버튼을 눌러 PC 전용 설정을 확정할 수 있습니다. 파일을 실제 다운로드하지 않았다면 경로가 표시되더라도 분석은 실행되지 않으니 존재 여부를 확인하세요.
 
 **경로 저장:** 설치 경로를 입력한 후 **KataGo 설정 저장**을 누르면 `data/local/katago_settings.json`에 PC 전용 설정이 저장되어 앱을 껐다 켜도 유지됩니다. 파일은 `.gitignore`에 포함되어 Private GitHub에도 업로드되지 않습니다.
 
