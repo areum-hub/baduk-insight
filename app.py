@@ -1,5 +1,6 @@
 """Baduk Insight — SGF, KataGo, and local RAG study chatbot (Phase 3)."""
 import hashlib
+import json
 import time
 from pathlib import Path
 
@@ -9,6 +10,7 @@ from sgfmill import sgf
 
 from src.board_svg import render_board
 from src.katago_client import KataGoError, build_query, gtp_coord, run_analysis, top_candidates
+from src.local_settings import load_settings, save_settings, suggested_paths
 from src.sgf_service import load_sgf, replay
 from src.playback import advance, move_manually
 from src.ollama_client import OllamaError, chat
@@ -19,6 +21,14 @@ PROJECT = Path(__file__).resolve().parent
 DATA_DIR = PROJECT / "data" / "sgf"
 DEFAULT_CONFIG = PROJECT / "configs" / "analysis_local.cfg"
 PLAYBACK_SECONDS = 2  # Fixed playback interval for personal study
+LOCAL_KATAGO_SETTINGS = PROJECT / "data" / "local" / "katago_settings.json"
+
+
+@st.cache_data(max_entries=128, show_spinner=False)
+def cached_katago_analysis(query_json: str, binary_path: str, model_path: str, config_path: str) -> dict:
+    """Keep previously analyzed positions in memory for the running Streamlit server."""
+    return run_analysis(json.loads(query_json), binary_path, model_path, config_path, timeout_seconds=180)
+
 
 st.set_page_config(page_title="Baduk Insight", page_icon="⚫", layout="wide")
 st.markdown(
@@ -109,11 +119,25 @@ with st.sidebar:
 
     st.divider()
     st.header("KataGo (local)")
-    binary = st.text_input("KataGo executable (path or katago)", value="katago")
-    model = st.text_input("Neural net model path (.bin.gz)", value="")
-    config = st.text_input("Analysis config path", value=str(DEFAULT_CONFIG))
-    visits = st.select_slider("Maximum visits", options=[25, 50, 100, 200, 500], value=100)
-    st.caption("분석 실행에는 별도로 설치한 KataGo 실행 파일과 신경망 모델이 필요합니다.")
+    try:
+        katago_preferences = suggested_paths(PROJECT) | load_settings(LOCAL_KATAGO_SETTINGS)
+    except ValueError as exc:
+        st.warning(str(exc))
+        katago_preferences = suggested_paths(PROJECT)
+    binary = st.text_input("KataGo executable (path or katago)", value=katago_preferences["binary"])
+    model = st.text_input("Neural net model path (.bin.gz)", value=katago_preferences["model"])
+    config = st.text_input("Analysis config path", value=katago_preferences["config"])
+    visits = st.select_slider(
+        "Maximum visits", options=[5, 10, 25, 50, 100],
+        value=katago_preferences["visits"] if katago_preferences["visits"] in (5, 10, 25, 50, 100) else 10,
+    )
+    if st.button("KataGo 설정 저장", help="경로와 방문 수를 이 컴퓨터에만 저장합니다."):
+        try:
+            save_settings(LOCAL_KATAGO_SETTINGS, binary, model, config, visits)
+            st.success("설정을 이 PC에 저장했습니다. 다음 실행에도 유지됩니다.")
+        except (OSError, ValueError) as exc:
+            st.error(f"설정 저장 실패: {exc}")
+    st.caption("CPU 환경에서는 방문 수 5~10을 권장합니다. 큰 신경망은 첫 실행이 오래 걸릴 수 있습니다.")
 
 if raw is None:
     st.info("왼쪽 Download CWI games 버튼을 누르거나 Upload SGF에서 기보 파일을 불러오세요.")
@@ -278,8 +302,14 @@ with right:
         if st.button("Analyze position before this move", type="primary", disabled=st.session_state.playing):
             try:
                 query = build_query(record, turn - 1, rules, float(komi), visits)
-                with st.spinner("KataGo 분석 중..."):
-                    result = run_analysis(query, binary, model, config, timeout_seconds=180)
+                # Query IDs are normally random; replace with a stable key so
+                # identical positions reuse the same analysis result.
+                position = {key: value for key, value in query.items() if key != "id"}
+                key_json = json.dumps(position, ensure_ascii=False, sort_keys=True)
+                query["id"] = hashlib.sha256(key_json.encode("utf-8")).hexdigest()[:24]
+                query_json = json.dumps(query, ensure_ascii=False, sort_keys=True)
+                with st.spinner("KataGo 분석 중... (같은 국면은 캐시에서 재사용)"):
+                    result = cached_katago_analysis(query_json, binary, model, config)
                 st.session_state.analysis_key = lookup
                 st.session_state.analysis_result = result
             except (KataGoError, ValueError, OSError) as exc:
