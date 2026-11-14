@@ -42,7 +42,7 @@ def test_chat_payload(monkeypatch):
 
 def test_curated_notes_and_prompts():
     notes = rag_pipeline.load_notes()
-    assert len(notes) >= 8
+    assert len(notes) >= 16
     assert all(note["id"] and note["path"].endswith(".md") for note in notes)
     hits = [{"title": "연결", "path": "02_connection.md", "text": "돌은 활로를 공유한다."}]
     messages = rag_pipeline.build_messages("왜 연결?", hits, {"turn": 45, "game": "test"}, [])
