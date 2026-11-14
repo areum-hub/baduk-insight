@@ -10,7 +10,7 @@ from sgfmill import sgf
 
 from src.board_svg import render_board
 from src.katago_client import KataGoError, build_query, gtp_coord, run_analysis, top_candidates
-from src.local_settings import load_settings, save_settings, suggested_paths
+from src.local_settings import resolved_settings, save_settings, suggested_paths
 from src.sgf_service import load_sgf, replay
 from src.playback import advance, move_manually
 from src.ollama_client import OllamaError, chat
@@ -87,40 +87,57 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+def get_cwi_samples() -> None:
+    """Download a small set of example games without requiring a terminal."""
+    good, errors = download_samples()
+    st.session_state["cwi_download_result"] = {
+        "good": [p.name for p in good],
+        "errors": errors,
+    }
+    if good:
+        # Streamlit button callbacks run before widgets are instantiated.
+        st.session_state["source_mode"] = "Local CWI samples"
+
+
 available = sorted(DATA_DIR.glob("*.sgf")) if DATA_DIR.exists() else []
 with st.sidebar:
     st.header("Load a game")
     st.caption(f"Local SGF files: {len(available)}")
-    source = st.radio("Source", ["Local CWI samples", "Upload SGF"])
+    source = st.radio(
+        "Source", ["Local CWI samples", "Upload SGF"], key="source_mode",
+    )
     raw = None
     name = ""
     if source == "Upload SGF":
         uploaded = st.file_uploader("Choose SGF", type=["sgf"])
         if uploaded is not None:
             raw, name = uploaded.getvalue(), uploaded.name
+        st.caption("기보 파일이 없다면 아래 샘플을 바로 받아보세요.")
+    elif available:
+        selected = st.selectbox("Professional game", available, format_func=lambda p: p.name)
+        if selected:
+            raw, name = selected.read_bytes(), selected.name
     else:
-        if not available:
-            st.warning("아직 로컬 SGF 기보가 없습니다.")
-            if st.button("Download CWI games", type="primary"):
-                with st.spinner("CWI 기보 다운로드 중..."):
-                    good, errors = download_samples()
-                for path in good:
-                    st.success(f"기보 준비 완료: {path.name}")
-                for error in errors:
-                    st.error(f"다운로드 실패: {error}")
-                if good:
-                    st.rerun()
-            st.caption("다운로드가 실패하면 Upload SGF를 선택하고 직접 SGF 파일을 업로드하세요.")
-        else:
-            selected = st.selectbox("Professional game", available, format_func=lambda p: p.name)
-            if selected:
-                raw, name = selected.read_bytes(), selected.name
-    st.markdown("[CWI archive](https://homepages.cwi.nl/~aeb/go/games/games/AlphaGo/)")
+        st.warning("아직 로컬 SGF 기보가 없습니다.")
+
+    st.button(
+        "샘플 기보 다운로드", key="get_cwi",
+        on_click=get_cwi_samples,
+        help="CWI 이세돌–알파고 기보 3판을 로컬 data/sgf 폴더에 저장합니다.",
+    )
+    download_result = st.session_state.get("cwi_download_result")
+    if download_result:
+        if download_result["good"]:
+            st.success(f"샘플 {len(download_result['good'])}판 준비 완료 — Local CWI samples에서 선택하세요.")
+        for error in download_result["errors"]:
+            st.error(f"샘플 다운로드 실패: {error}")
+    st.markdown("[CWI 기보 원본 보기](https://homepages.cwi.nl/~aeb/go/games/games/AlphaGo/)")
+    st.caption("샘플은 최대 3판만 내려받고, 기존 기보는 유지합니다.")
 
     st.divider()
     st.header("KataGo (local)")
     try:
-        katago_preferences = suggested_paths(PROJECT) | load_settings(LOCAL_KATAGO_SETTINGS)
+        katago_preferences = resolved_settings(PROJECT, LOCAL_KATAGO_SETTINGS)
     except ValueError as exc:
         st.warning(str(exc))
         katago_preferences = suggested_paths(PROJECT)
@@ -137,7 +154,9 @@ with st.sidebar:
             st.success("설정을 이 PC에 저장했습니다. 다음 실행에도 유지됩니다.")
         except (OSError, ValueError) as exc:
             st.error(f"설정 저장 실패: {exc}")
-    st.caption("CPU 환경에서는 방문 수 5~10을 권장합니다. 큰 신경망은 첫 실행이 오래 걸릴 수 있습니다.")
+    if not Path(model).is_file():
+        st.caption("경량 모델을 Downloads 폴더에 놓으면 기본 경로에서 자동 인식합니다.")
+    st.caption("CPU 환경에서는 방문 수 5~10을 권장합니다. 경로는 PC 사용자 폴더를 기준으로 자동 제안됩니다.")
 
 if raw is None:
     st.info("왼쪽 Download CWI games 버튼을 누르거나 Upload SGF에서 기보 파일을 불러오세요.")
