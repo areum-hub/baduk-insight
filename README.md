@@ -69,6 +69,19 @@ SGF 기보가 열리면 바둑판 위에서 **▶ 재생 / ⏸ 일시정지 / �
 | 답변 생성 | Qwen3 4B Instruct (Ollama) | 한국어 학습 설명 |
 | 테스트 | pytest | 주요 모듈 단위 테스트 |
 
+## GitHub 코드 동기화 후 실행 (Windows)
+
+최초 설치를 마친 PC에서는 프로젝트 폴더의 `start_baduk.ps1`를 실행하세요. 시작할 때 **GitHub Private 저장소의 `main` 최신 코드를 fast-forward 방식으로 내려받고**, 의존성을 확인한 뒤 Streamlit을 시작합니다.
+
+```powershell
+cd "C:\Windows\System32\baduk-insight"
+.\start_baduk.ps1
+```
+
+**첫 실행에서는 새 스크립트 자체를 받아야 하므로** 기존 프로젝트에서 한 번만 `git pull --ff-only origin main`을 먼저 실행하세요. 이후에는 위 스크립트 하나로 실행할 수 있습니다. PowerShell 정책 때문에 차단되면 `powershell -NoProfile -ExecutionPolicy Bypass -File .\start_baduk.ps1`로 해당 실행에 한해 스크립트를 실행할 수 있습니다.
+
+이 방식은 **앱을 시작할 때만 코드 동기화**합니다. GitHub 변경 사항이 실행 중인 앱에 실시간 반영되거나 로컬 변경 사항이 GitHub에 자동 업로드되지는 않습니다. 로컬 코드 변경이 있으면 덮어쓰지 않고 중단합니다. 개인 SGF 기보, ChromaDB, KataGo 신경망 가중치, Ollama 모델은 PC에 보관하며 GitHub로 업로드하지 않습니다.
+
 ## 빠른 실행 (Windows PowerShell)
 
 **Ollama를 먼저 설치하지 않아도 SGF 뷰어부터 실행할 수 있습니다.**
