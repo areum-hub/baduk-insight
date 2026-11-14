@@ -218,3 +218,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Baduk Insight: downloaded SGF data, locally installed engines/models and caches
+data/sgf/
+data/analysis/
+data/knowledge/
+analysis_logs/
+*.bin.gz
+*.onnx
+*.pt
+*.pth
