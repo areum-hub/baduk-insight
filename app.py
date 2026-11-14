@@ -1,5 +1,6 @@
 """Baduk Insight — SGF, KataGo, and local RAG study chatbot (Phase 3)."""
 import hashlib
+import time
 from pathlib import Path
 
 import streamlit as st
@@ -9,6 +10,7 @@ from sgfmill import sgf
 from src.board_svg import render_board
 from src.katago_client import KataGoError, build_query, gtp_coord, run_analysis, top_candidates
 from src.sgf_service import load_sgf, replay
+from src.playback import advance, move_manually
 from src.ollama_client import OllamaError, chat
 from src.rag_pipeline import build_index, build_messages, get_collection, load_notes, retrieve
 from scripts.download_cwi_samples import download_samples
@@ -126,29 +128,92 @@ if st.session_state.get("game_digest") != digest:
     st.session_state.analysis_key = None
     st.session_state.rag_messages = []
     st.session_state.rag_scene = None
+    st.session_state.playing = False
+    st.session_state.playback_speed = 2
+    st.session_state.last_advance = time.monotonic()
 
 st.subheader(f"{record.black_player} (Black) vs {record.white_player} (White)")
 st.caption(f"{record.event} | {record.date} | {record.result} | {name}")
+# A fragment refreshes only the board while playback runs; KataGo and RAG
+# panels remain still until playback is paused. One timer tick advances one move.
 left, right = st.columns([1.45, 1])
-with left:
-    back, forward = st.columns(2)
-    if back.button("Previous", disabled=st.session_state.move_index == 0):
-        st.session_state.move_index -= 1
-    if forward.button("Next", disabled=st.session_state.move_index == record.move_count):
-        st.session_state.move_index += 1
-    st.slider("Move", 0, record.move_count, key="move_index")
-    try:
-        board, last = replay(record, st.session_state.move_index)
-    except (ValueError, IndexError) as exc:
-        st.error(f"Could not replay move: {exc}")
-        st.stop()
-    height = 625 if record.size == 19 else (510 if record.size == 13 else 410)
-    components.html(render_board(board, last_move=last), height=height, scrolling=False)
 
+@st.fragment(run_every="0.25s")
+def show_replay():
+    with left:
+        current = st.session_state.move_index
+        if st.session_state.playing:
+            new_index, new_anchor, still_playing = advance(
+                current, record.move_count,
+                st.session_state.last_advance,
+                time.monotonic(), st.session_state.playback_speed,
+            )
+            if new_index != current:
+                st.session_state.move_index = new_index
+                st.session_state.last_advance = new_anchor
+            if not still_playing:
+                st.session_state.playing = False
+                st.rerun()
+        current = st.session_state.move_index
+        controls = st.columns([1, 1, 1, 1])
+        with controls[0]:
+            if st.button("⏮ 이전", disabled=current == 0, key="replay_previous"):
+                st.session_state.playing = False
+                st.session_state.move_index = move_manually(current, record.move_count, -1)
+                st.session_state.last_advance = time.monotonic()
+                st.rerun()
+        with controls[1]:
+            if st.button("▶ 재생" if not st.session_state.playing else "⏸ 일시정지",
+                         disabled=(not st.session_state.playing and current >= record.move_count),
+                         key="replay_toggle"):
+                st.session_state.playing = not st.session_state.playing
+                st.session_state.last_advance = time.monotonic()
+                st.rerun()
+        with controls[2]:
+            if st.button("⏭ 다음", disabled=current >= record.move_count, key="replay_next"):
+                st.session_state.playing = False
+                st.session_state.move_index = move_manually(current, record.move_count, 1)
+                st.session_state.last_advance = time.monotonic()
+                st.rerun()
+        with controls[3]:
+            speed = st.selectbox(
+                "재생 간격", [1, 2, 3], format_func=lambda v: f"{v}초",
+                key="playback_speed", help="한 수를 표시한 다음 다음 수까지 기다리는 시간",
+            )
+            if speed not in (1, 2, 3):
+                st.session_state.playback_speed = 2
+        # Use a temporary slider key to keep widget state synchronized with timer changes.
+        def on_seek():
+            st.session_state.playing = False
+            st.session_state.move_index = st.session_state.replay_seek
+            st.session_state.last_advance = time.monotonic()
+            st.rerun()
+        st.session_state.replay_seek = st.session_state.move_index
+        st.slider(
+            "Move", 0, record.move_count, key="replay_seek", on_change=on_seek,
+            help="슬라이더를 움직이면 자동 재생이 멈추고 선택한 수로 이동합니다.",
+        )
+        current = st.session_state.move_index
+        st.caption(
+            f"복기: {current} / {record.move_count}수 · "
+            + (f"자동 재생 중 ({st.session_state.playback_speed}초/수)" if st.session_state.playing else "일시정지")
+        )
+        try:
+            board, last = replay(record, current)
+        except (ValueError, IndexError) as exc:
+            st.session_state.playing = False
+            st.error(f"Could not replay move: {exc}")
+            return
+        height = 625 if record.size == 19 else (510 if record.size == 13 else 410)
+        components.html(render_board(board, last_move=last), height=height, scrolling=False)
+
+show_replay()
 with right:
     turn = st.session_state.move_index
     st.markdown("### Game review")
-    st.metric("Current move", f"{turn} / {record.move_count}")
+    st.metric("Current move (paused view)", f"{turn} / {record.move_count}")
+    if st.session_state.playing:
+        st.info("자동 재생 중에는 오른쪽 분석·챗봇의 수순이 갱신되지 않습니다. 일시정지하면 현재 수로 갱신됩니다.")
     if turn:
         colour, point = record.moves[turn-1]
         who = "Black" if colour == "b" else "White"
@@ -156,12 +221,14 @@ with right:
 
     st.divider()
     st.markdown("### KataGo analysis")
+    if st.session_state.playing:
+        st.caption("분석하려면 일시정지하세요.")
     st.caption("현재 표시된 수가 아닌, 그 수를 두기 **직전의 국면**에서 AI 추천 수를 분석합니다.")
     if turn == 0:
         st.info("첫 수(착점 이전)를 분석하려면 수순을 1로 이동하세요.")
     else:
         lookup = (digest, turn, rules, float(komi), visits, binary, model, config)
-        if st.button("Analyze position before this move", type="primary"):
+        if st.button("Analyze position before this move", type="primary", disabled=st.session_state.playing):
             try:
                 query = build_query(record, turn - 1, rules, float(komi), visits)
                 with st.spinner("KataGo 분석 중..."):
@@ -212,7 +279,7 @@ with right:
                 with st.expander("검색 근거 문서"):
                     for source in message["sources"]:
                         st.caption(f"{source['title']} · knowledge/{source['path']}")
-    question = st.chat_input("예: 왜 중앙의 연결이 중요해?")
+    question = st.chat_input("예: 왜 중앙의 연결이 중요해?", disabled=st.session_state.playing)
     if question:
         history = list(st.session_state.rag_messages)
         st.session_state.rag_messages.append({"role": "user", "content": question})
