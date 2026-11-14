@@ -142,74 +142,74 @@ left, right = st.columns([1.45, 1])
 def show_replay():
     if st.session_state.pop("replay_full_refresh", False):
         st.rerun()
-    with left:
-        current = st.session_state.move_index
-        if st.session_state.playing:
-            new_index, new_anchor, still_playing = advance(
-                current, record.move_count,
-                st.session_state.last_advance,
-                time.monotonic(), st.session_state.playback_speed,
-            )
-            if new_index != current:
-                st.session_state.move_index = new_index
-                st.session_state.last_advance = new_anchor
-            if not still_playing:
-                st.session_state.playing = False
-                st.rerun()
-        current = st.session_state.move_index
-        controls = st.columns([1, 1, 1, 1])
-        with controls[0]:
-            if st.button("⏮ 이전", disabled=current == 0, key="replay_previous"):
-                st.session_state.playing = False
-                st.session_state.move_index = move_manually(current, record.move_count, -1)
-                st.session_state.last_advance = time.monotonic()
-                st.rerun()
-        with controls[1]:
-            if st.button("▶ 재생" if not st.session_state.playing else "⏸ 일시정지",
-                         disabled=(not st.session_state.playing and current >= record.move_count),
-                         key="replay_toggle"):
-                st.session_state.playing = not st.session_state.playing
-                st.session_state.last_advance = time.monotonic()
-                st.rerun()
-        with controls[2]:
-            if st.button("⏭ 다음", disabled=current >= record.move_count, key="replay_next"):
-                st.session_state.playing = False
-                st.session_state.move_index = move_manually(current, record.move_count, 1)
-                st.session_state.last_advance = time.monotonic()
-                st.rerun()
-        with controls[3]:
-            speed = st.selectbox(
-                "재생 간격", [1, 2, 3], format_func=lambda v: f"{v}초",
-                key="playback_speed", help="한 수를 표시한 다음 다음 수까지 기다리는 시간",
-            )
-            if speed not in (1, 2, 3):
-                st.session_state.playback_speed = 2
-        # Use a temporary slider key to keep widget state synchronized with timer changes.
-        def on_seek():
+    current = st.session_state.move_index
+    if st.session_state.playing:
+        new_index, new_anchor, still_playing = advance(
+            current, record.move_count,
+            st.session_state.last_advance,
+            time.monotonic(), st.session_state.playback_speed,
+        )
+        if new_index != current:
+            st.session_state.move_index = new_index
+            st.session_state.last_advance = new_anchor
+        if not still_playing:
             st.session_state.playing = False
-            st.session_state.move_index = st.session_state.replay_seek
+            st.rerun()
+    current = st.session_state.move_index
+    controls = st.columns([1, 1, 1, 1])
+    with controls[0]:
+        if st.button("⏮ 이전", disabled=current == 0, key="replay_previous"):
+            st.session_state.playing = False
+            st.session_state.move_index = move_manually(current, record.move_count, -1)
             st.session_state.last_advance = time.monotonic()
-            st.session_state.replay_full_refresh = True
-        st.session_state.replay_seek = st.session_state.move_index
-        st.slider(
-            "Move", 0, record.move_count, key="replay_seek", on_change=on_seek,
-            help="슬라이더를 움직이면 자동 재생이 멈추고 선택한 수로 이동합니다.",
-        )
-        current = st.session_state.move_index
-        st.caption(
-            f"복기: {current} / {record.move_count}수 · "
-            + (f"자동 재생 중 ({st.session_state.playback_speed}초/수)" if st.session_state.playing else "일시정지")
-        )
-        try:
-            board, last = replay(record, current)
-        except (ValueError, IndexError) as exc:
+            st.rerun()
+    with controls[1]:
+        if st.button("▶ 재생" if not st.session_state.playing else "⏸ 일시정지",
+                     disabled=(not st.session_state.playing and current >= record.move_count),
+                     key="replay_toggle"):
+            st.session_state.playing = not st.session_state.playing
+            st.session_state.last_advance = time.monotonic()
+            st.rerun()
+    with controls[2]:
+        if st.button("⏭ 다음", disabled=current >= record.move_count, key="replay_next"):
             st.session_state.playing = False
-            st.error(f"Could not replay move: {exc}")
-            return
-        height = 625 if record.size == 19 else (510 if record.size == 13 else 410)
-        components.html(render_board(board, last_move=last), height=height, scrolling=False)
+            st.session_state.move_index = move_manually(current, record.move_count, 1)
+            st.session_state.last_advance = time.monotonic()
+            st.rerun()
+    with controls[3]:
+        speed = st.selectbox(
+            "재생 간격", [1, 2, 3], format_func=lambda v: f"{v}초",
+            key="playback_speed", help="한 수를 표시한 다음 다음 수까지 기다리는 시간",
+        )
+        if speed not in (1, 2, 3):
+            st.session_state.playback_speed = 2
+    # Use a temporary slider key to keep widget state synchronized with timer changes.
+    def on_seek():
+        st.session_state.playing = False
+        st.session_state.move_index = st.session_state.replay_seek
+        st.session_state.last_advance = time.monotonic()
+        st.session_state.replay_full_refresh = True
+    st.session_state.replay_seek = st.session_state.move_index
+    st.slider(
+        "Move", 0, record.move_count, key="replay_seek", on_change=on_seek,
+        help="슬라이더를 움직이면 자동 재생이 멈추고 선택한 수로 이동합니다.",
+    )
+    current = st.session_state.move_index
+    st.caption(
+        f"복기: {current} / {record.move_count}수 · "
+        + (f"자동 재생 중 ({st.session_state.playback_speed}초/수)" if st.session_state.playing else "일시정지")
+    )
+    try:
+        board, last = replay(record, current)
+    except (ValueError, IndexError) as exc:
+        st.session_state.playing = False
+        st.error(f"Could not replay move: {exc}")
+        return
+    height = 625 if record.size == 19 else (510 if record.size == 13 else 410)
+    components.html(render_board(board, last_move=last), height=height, scrolling=False)
 
-show_replay()
+with left:
+    show_replay()
 with right:
     turn = st.session_state.move_index
     st.markdown("### Game review")
