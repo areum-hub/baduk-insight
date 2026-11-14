@@ -228,3 +228,6 @@ analysis_logs/
 *.onnx
 *.pt
 *.pth
+
+# Local vector database (Phase 3)
+data/chroma/
