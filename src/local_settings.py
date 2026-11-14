@@ -48,16 +48,44 @@ def save_settings(path: Path, binary: str, model: str, config: str, visits: int)
             Path(temp_name).unlink()
 
 
+LIGHT_MODEL_NAME = "kata1-b10c128-s1141046784-d204142634.txt.gz"
+PREVIOUS_LARGE_MODEL_NAME = "kata1-tf3-b11c768-s12382M-d6533M.bin.gz"
+
+
 def suggested_paths(project: Path) -> dict:
-    """Suggest existing local files on a first run without hardcoding user paths."""
+    """Default to the agreed lightweight network without a hardcoded username."""
     home = Path.home()
     binary = home / "KataGo" / "katago.exe"
-    candidates = sorted(list((home / "Downloads").glob("*.bin.gz")) + list((home / "Downloads").glob("*.txt.gz")))
-    small = [p for p in candidates if "b10c128" in p.name.lower()]
-    model = small[0] if len(small) == 1 else candidates[0] if len(candidates) == 1 else None
+    light_model = home / "Downloads" / LIGHT_MODEL_NAME
     return {
         "binary": str(binary) if binary.is_file() else "katago",
-        "model": str(model) if model is not None else "",
+        # Show the intended file location even before download.
+        "model": str(light_model),
         "config": str(project / "configs" / "analysis_local.cfg"),
-        "visits": 10,
+        "visits": 5,
     }
+
+
+def resolved_settings(project: Path, settings_path: Path) -> dict:
+    """Restore per-PC values, upgrading the old large model to the small model.
+
+    A manually saved *other* network is respected; the previously used large
+    model is intentionally replaced even if the new model is not yet downloaded.
+    """
+    defaults = suggested_paths(project)
+    stored = load_settings(settings_path)
+    merged = defaults | stored
+    selected_name = Path(str(stored.get("model", ""))).name
+    if not selected_name or selected_name == PREVIOUS_LARGE_MODEL_NAME:
+        merged["model"] = defaults["model"]
+        merged["visits"] = 5
+    if merged["visits"] not in (5, 10, 25, 50, 100):
+        merged["visits"] = 5
+    # Do not trust stale absolute config paths if project was moved.
+    if not Path(str(merged["config"])).is_file():
+        merged["config"] = defaults["config"]
+    # Restore known home-folder engine if saved path was removed.
+    stored_binary = str(merged["binary"]).strip()
+    if not Path(stored_binary).is_file() and defaults["binary"] != "katago":
+        merged["binary"] = defaults["binary"]
+    return merged
