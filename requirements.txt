@@ -2,3 +2,4 @@ streamlit>=1.40,<2
 sgfmill>=1.1.1,<2
 pytest>=8,<10
 chromadb>=0.5,<2
+truststore>=0.10,<1
