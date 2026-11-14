@@ -75,63 +75,40 @@ st.markdown(
         font-weight: 700 !important;
         color: inherit !important;
     }
-    /* The sidebar keeps all current controls; only presentation changes. */
+    /* Quiet study sidebar. No duplicated logo or decorative header. */
     section[data-testid="stSidebar"] {
-        border-right: 1px solid rgba(137, 111, 78, 0.18);
+        border-right: 1px solid rgba(135, 116, 91, .18);
     }
     section[data-testid="stSidebar"] > div:first-child {
-        background: color-mix(in srgb, var(--secondary-background-color, #f8f6f2) 90%, #d9bb8c 10%);
+        background: var(--secondary-background-color, #f8f7f5);
     }
     section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {
-        padding-top: 1.2rem;
-        padding-bottom: 2rem;
+        padding-top: 1.3rem;
+        padding-bottom: 1.8rem;
+    }
+    section[data-testid="stSidebar"] [data-testid="stVerticalBlockBorderWrapper"] {
+        border-radius: 14px;
     }
     section[data-testid="stSidebar"] h3 {
-        border-left: 4px solid #b68a57;
-        padding: 0.35rem 0.7rem !important;
-        margin: 0.15rem 0 0.35rem !important;
-        border-radius: 0 8px 8px 0;
-        background: rgba(172, 127, 73, 0.085);
-        font-size: 1.02rem !important;
-        letter-spacing: -0.02em;
-        font-weight: 700;
+        margin: 0 0 .4rem !important;
+        padding: 0 !important;
+        background: none !important;
+        border: 0 !important;
+        font-size: 1rem !important;
+        font-weight: 700 !important;
+        letter-spacing: -.02em;
     }
-    section[data-testid="stSidebar"] hr {
-        margin: 1.45rem 0 !important;
-        border-color: rgba(137, 111, 78, 0.24);
-    }
-    section[data-testid="stSidebar"] [data-testid="stRadio"] {
-        padding: 0.65rem 0.8rem;
-        border: 1px solid rgba(137, 111, 78, 0.16);
-        background: rgba(255, 255, 255, 0.055);
-        border-radius: 12px;
-    }
-    section[data-testid="stSidebar"] [data-testid="stMetric"] {
-        padding: 0.75rem 0.85rem;
-        border-radius: 12px;
-        border: 1px solid rgba(137, 111, 78, 0.2);
-        background: rgba(172, 127, 73, 0.065);
+    section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] {
+        line-height: 1.45;
     }
     section[data-testid="stSidebar"] [data-testid="stExpander"] details {
-        border: 1px solid rgba(137, 111, 78, 0.2);
-        border-radius: 12px;
-        overflow: hidden;
-        background: rgba(255, 255, 255, 0.045);
+        border-radius: 10px;
+        border: 1px solid rgba(132, 112, 87, .16);
     }
-    section[data-testid="stSidebar"] [data-testid="stExpander"] summary {
-        font-weight: 600;
-        border-radius: 12px;
-    }
-    section[data-testid="stSidebar"] button:not([data-testid="stSidebarCollapseButton"]) {
-        border-radius: 11px;
-        transition: border-color .18s ease, background .18s ease;
-    }
+    section[data-testid="stSidebar"] button:not([data-testid="stSidebarCollapseButton"]),
     section[data-testid="stSidebar"] input,
     section[data-testid="stSidebar"] [data-baseweb="select"] > div {
         border-radius: 10px;
-    }
-    section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] {
-        line-height: 1.55;
     }
     </style>
     <div class="bi-brand-header">
@@ -147,103 +124,105 @@ st.markdown(
 
 available = sorted(DATA_DIR.glob("*.sgf")) if DATA_DIR.exists() else []
 with st.sidebar:
-    st.subheader("01 · 기보 선택")
-    source = st.radio(
-        "기보 선택 방법",
-        ["Local CWI samples", "Upload SGF"],
-        key="source_mode",
-        format_func=lambda item: "내 기보에서 선택" if item == "Local CWI samples" else "SGF 업로드",
-    )
-    raw = None
-    name = ""
-    if source == "Upload SGF":
-        st.markdown("**CWI 원본 기보 연결**")
-        st.caption("CWI 원본을 앱에서 바로 열거나, 내 컴퓨터의 SGF 파일을 업로드하세요.")
-        st.link_button(
-            "CWI 전체 기보 목록 보기", ARCHIVE_URL,
-            use_container_width=True,
+    with st.container(border=True):
+        st.subheader("01 · 기보 선택")
+        source = st.radio(
+            "기보 선택 방법",
+            ["Local CWI samples", "Upload SGF"],
+            key="source_mode",
+            format_func=lambda item: "내 기보에서 선택" if item == "Local CWI samples" else "SGF 업로드",
         )
-        import_mode = st.radio(
-            "불러오는 방법",
-            ["CWI 원본에서 바로 열기", "내 컴퓨터 파일 업로드"],
-            key="sgf_import_mode",
-        )
-        if import_mode == "CWI 원본에서 바로 열기":
-            selection = st.selectbox(
-                "CWI 원본 기보",
-                ["직접 SGF 주소 입력", *CWI_CHOICES],
-                key="cwi_game_selection",
-                help="원본 사이트의 다른 대국도 SGF 파일 주소로 열 수 있습니다.",
+        raw = None
+        name = ""
+        if source == "Upload SGF":
+            st.markdown("**CWI 원본 기보 연결**")
+            st.caption("CWI 원본을 앱에서 바로 열거나, 내 컴퓨터의 SGF 파일을 업로드하세요.")
+            st.link_button(
+                "CWI 전체 기보 목록 보기", ARCHIVE_URL,
+                use_container_width=True,
             )
-            if selection == "직접 SGF 주소 입력":
-                cwi_url = st.text_input(
-                    "SGF 원본 URL",
-                    placeholder="https://homepages.cwi.nl/~aeb/go/games/games/.../game.sgf",
-                    key="cwi_original_url",
-                ).strip()
+            import_mode = st.radio(
+                "불러오는 방법",
+                ["CWI 원본에서 바로 열기", "내 컴퓨터 파일 업로드"],
+                key="sgf_import_mode",
+            )
+            if import_mode == "CWI 원본에서 바로 열기":
+                selection = st.selectbox(
+                    "CWI 원본 기보",
+                    ["직접 SGF 주소 입력", *CWI_CHOICES],
+                    key="cwi_game_selection",
+                    help="원본 사이트의 다른 대국도 SGF 파일 주소로 열 수 있습니다.",
+                )
+                if selection == "직접 SGF 주소 입력":
+                    cwi_url = st.text_input(
+                        "SGF 원본 URL",
+                        placeholder="https://homepages.cwi.nl/~aeb/go/games/games/.../game.sgf",
+                        key="cwi_original_url",
+                    ).strip()
+                else:
+                    cwi_url = CWI_CHOICES[selection]
+                    st.caption("선택한 CWI SGF 원본 파일을 직접 불러옵니다.")
+                if st.button("이 기보로 복기 시작", key="cwi_open_game", disabled=not cwi_url):
+                    try:
+                        fetched_raw, fetched_name = fetch_cwi_sgf(cwi_url)
+                        st.session_state["cwi_loaded"] = {
+                            "url": cwi_url,
+                            "raw": fetched_raw,
+                            "name": fetched_name,
+                        }
+                        st.session_state.pop("cwi_load_error", None)
+                    except ValueError as exc:
+                        st.session_state["cwi_loaded"] = None
+                        st.session_state["cwi_load_error"] = str(exc)
+                if st.session_state.get("cwi_load_error"):
+                    st.error(st.session_state["cwi_load_error"])
+                loaded = st.session_state.get("cwi_loaded")
+                if loaded and loaded["url"] == cwi_url:
+                    raw, name = loaded["raw"], loaded["name"]
+                    st.success(f"복기 중: {name}")
             else:
-                cwi_url = CWI_CHOICES[selection]
-                st.caption("선택한 CWI SGF 원본 파일을 직접 불러옵니다.")
-            if st.button("이 기보로 복기 시작", key="cwi_open_game", disabled=not cwi_url):
-                try:
-                    fetched_raw, fetched_name = fetch_cwi_sgf(cwi_url)
-                    st.session_state["cwi_loaded"] = {
-                        "url": cwi_url,
-                        "raw": fetched_raw,
-                        "name": fetched_name,
-                    }
-                    st.session_state.pop("cwi_load_error", None)
-                except ValueError as exc:
-                    st.session_state["cwi_loaded"] = None
-                    st.session_state["cwi_load_error"] = str(exc)
-            if st.session_state.get("cwi_load_error"):
-                st.error(st.session_state["cwi_load_error"])
-            loaded = st.session_state.get("cwi_loaded")
-            if loaded and loaded["url"] == cwi_url:
-                raw, name = loaded["raw"], loaded["name"]
-                st.success(f"복기 중: {name}")
+                uploaded = st.file_uploader("SGF 파일 선택", type=["sgf"])
+                if uploaded is not None:
+                    raw, name = uploaded.getvalue(), uploaded.name
+        elif available:
+            selected = st.selectbox("복기할 대국", available, format_func=lambda p: p.name)
+            if selected:
+                raw, name = selected.read_bytes(), selected.name
         else:
-            uploaded = st.file_uploader("SGF 파일 선택", type=["sgf"])
-            if uploaded is not None:
-                raw, name = uploaded.getvalue(), uploaded.name
-    elif available:
-        selected = st.selectbox("복기할 대국", available, format_func=lambda p: p.name)
-        if selected:
-            raw, name = selected.read_bytes(), selected.name
-    else:
-        st.info("PC에 저장된 기보가 없습니다. 'SGF 업로드'에서 CWI 원본 기보를 받아 불러오세요.")
+            st.info("PC에 저장된 기보가 없습니다. 'SGF 업로드'에서 CWI 원본 기보를 받아 불러오세요.")
 
-    st.divider()
-    st.subheader("02 · AI 착수 분석")
-    st.caption("필요한 착수에서만 AI 분석을 실행합니다.")
-    try:
-        katago_preferences = resolved_settings(PROJECT, LOCAL_KATAGO_SETTINGS)
-    except ValueError as exc:
-        st.warning(str(exc))
-        katago_preferences = suggested_paths(PROJECT)
-    binary = katago_preferences["binary"]
-    model = katago_preferences["model"]
-    config = katago_preferences["config"]
-    visits = katago_preferences["visits"]
-    if Path(binary).is_file() and Path(model).is_file():
-        st.caption("KataGo 실행 파일 및 모델 경로 확인됨")
-    else:
-        st.caption("KataGo 설치 파일이나 모델을 확인해 주세요.")
-    with st.expander("엔진 설정 및 분석 강도", expanded=False):
-        binary = st.text_input("KataGo 실행 파일", value=binary)
-        model = st.text_input("신경망 모델 파일", value=model)
-        config = st.text_input("분석 설정 파일", value=config)
-        visits = st.select_slider(
-            "AI 탐색 횟수", options=[5, 10, 25, 50, 100],
-            value=visits if visits in (5, 10, 25, 50, 100) else 5,
-            help="수치가 작을수록 분석이 빠르지만 결과가 덜 안정적일 수 있습니다.",
-        )
-        if st.button("이 PC에 분석 설정 저장", key="save_katago"):
-            try:
-                save_settings(LOCAL_KATAGO_SETTINGS, binary, model, config, visits)
-                st.success("설정이 PC에 저장되었습니다.")
-            except (OSError, ValueError) as exc:
-                st.error(f"설정 저장 실패: {exc}")
+    analysis_sidebar_card = st.container(border=True)
+    with analysis_sidebar_card:
+        st.subheader("02 · AI 착수 분석")
+        st.caption("필요한 착수에서만 AI 분석을 실행합니다.")
+        try:
+            katago_preferences = resolved_settings(PROJECT, LOCAL_KATAGO_SETTINGS)
+        except ValueError as exc:
+            st.warning(str(exc))
+            katago_preferences = suggested_paths(PROJECT)
+        binary = katago_preferences["binary"]
+        model = katago_preferences["model"]
+        config = katago_preferences["config"]
+        visits = katago_preferences["visits"]
+        if Path(binary).is_file() and Path(model).is_file():
+            st.caption("KataGo 실행 파일 및 모델 경로 확인됨")
+        else:
+            st.caption("KataGo 설치 파일이나 모델을 확인해 주세요.")
+        with st.expander("엔진 설정 및 분석 강도", expanded=False):
+            binary = st.text_input("KataGo 실행 파일", value=binary)
+            model = st.text_input("신경망 모델 파일", value=model)
+            config = st.text_input("분석 설정 파일", value=config)
+            visits = st.select_slider(
+                "AI 탐색 횟수", options=[5, 10, 25, 50, 100],
+                value=visits if visits in (5, 10, 25, 50, 100) else 5,
+                help="수치가 작을수록 분석이 빠르지만 결과가 덜 안정적일 수 있습니다.",
+            )
+            if st.button("이 PC에 분석 설정 저장", key="save_katago"):
+                try:
+                    save_settings(LOCAL_KATAGO_SETTINGS, binary, model, config, visits)
+                    st.success("설정이 PC에 저장되었습니다.")
+                except (OSError, ValueError) as exc:
+                    st.error(f"설정 저장 실패: {exc}")
 
 if raw is None:
     st.info("왼쪽에서 CWI 원본 기보를 선택하거나 SGF 파일을 업로드해 주세요.")
@@ -274,7 +253,7 @@ try:
 except ValueError:
     suggested_komi = 7.5
 
-with st.sidebar:
+with analysis_sidebar_card:
     # Rules and komi affect KataGo estimates, but need not clutter SGF study UI.
     with st.expander("대국 규칙 · 덤 (필요할 때만)", expanded=False):
         st.caption("승률과 예상 집 차이를 계산할 때 사용하는 설정입니다. 기보 재생에는 영향을 주지 않습니다.")
@@ -298,11 +277,7 @@ with st.sidebar:
         recorded_rules = sgf_property("RU", "")
         recorded_komi = sgf_property("KM", "")
         if not recorded_rules:
-            st.warning(
-                "원본 기보에는 규칙이 기록되지 않았습니다. 현재 중국식은 임시 기본값이며 "
-                "실제 대국 규칙과 다를 수 있습니다.",
-                icon="⚠️",
-            )
+            st.caption("규칙 정보가 없는 기보이므로 중국식은 임시 분석 기준입니다.")
         else:
             st.caption(f"기보에 기록된 규칙: {recorded_rules}")
         if recorded_komi:
@@ -314,29 +289,29 @@ with st.sidebar:
 
 
 with st.sidebar:
-    st.divider()
-    st.subheader("03 · AI 학습 자료")
-    try:
-        source_notes = load_notes()
-        source_count = len(source_notes)
-        index_count = get_collection().count()
-        st.metric("보유한 바둑 학습 노트", f"{source_count}개")
-        st.caption(f"AI 검색에 등록된 문서: {index_count}개")
-        if index_count != source_count:
-            st.info("학습 노트와 검색 데이터의 개수가 다릅니다. 아래에서 동기화해 주세요.")
-        else:
-            st.caption("학습 자료와 검색 색인의 문서 수가 일치합니다.")
-        with st.expander("학습 자료 관리", expanded=index_count != source_count):
-            if st.button("AI 검색 자료 동기화", key="refresh_knowledge", use_container_width=True):
-                try:
-                    with st.spinner("학습 자료를 검색용으로 등록하는 중..."):
-                        indexed = build_index(source_notes)
-                    st.success(f"{indexed}개 문서 등록 완료")
-                    st.rerun()
-                except (OllamaError, ValueError, RuntimeError, OSError) as exc:
-                    st.error(f"자료 등록 실패: {exc}")
-    except (OSError, RuntimeError, ValueError) as exc:
-        st.error(f"학습 자료 상태를 확인하지 못했습니다: {exc}")
+    with st.container(border=True):
+        st.subheader("03 · AI 학습 자료")
+        try:
+            source_notes = load_notes()
+            source_count = len(source_notes)
+            index_count = get_collection().count()
+            st.metric("보유한 바둑 학습 노트", f"{source_count}개")
+            st.caption(f"AI 검색에 등록된 문서: {index_count}개")
+            if index_count != source_count:
+                st.info("학습 노트와 검색 데이터의 개수가 다릅니다. 아래에서 동기화해 주세요.")
+            else:
+                st.caption("학습 자료와 검색 색인의 문서 수가 일치합니다.")
+            with st.expander("학습 자료 관리", expanded=index_count != source_count):
+                if st.button("AI 검색 자료 동기화", key="refresh_knowledge", use_container_width=True):
+                    try:
+                        with st.spinner("학습 자료를 검색용으로 등록하는 중..."):
+                            indexed = build_index(source_notes)
+                        st.success(f"{indexed}개 문서 등록 완료")
+                        st.rerun()
+                    except (OllamaError, ValueError, RuntimeError, OSError) as exc:
+                        st.error(f"자료 등록 실패: {exc}")
+        except (OSError, RuntimeError, ValueError) as exc:
+            st.error(f"학습 자료 상태를 확인하지 못했습니다: {exc}")
 
 digest = hashlib.sha256(raw).hexdigest()
 if st.session_state.get("game_digest") != digest:
