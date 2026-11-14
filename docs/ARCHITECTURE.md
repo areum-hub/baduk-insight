@@ -1,33 +1,46 @@
-# Architecture and roadmap
+# Baduk Insight — Architecture and roadmap
 
 ## Phase 1 — SGF viewer (prototype)
 
-- SGF files from the CWI professional Go archive (initial target: 3 games)
-- Parse the main variation using sgfmill
-- Replay captures and passes; display 19x19 Go board
-- Local Streamlit UI
+- CWI professional Go games, small sample set (initial target: 3 games)
+- SGF mainline parsing and replay with `sgfmill`
+- 19×19 board rendering in Streamlit
+- Download script: `scripts/download_cwi_samples.py`
 
-## Phase 2 — KataGo (planned)
+Status: code committed; real SGF download and application runtime test remain to be verified on a configured machine.
 
-- Call KataGo analysis engine for selected moves
-- Cache evaluations by position, rules, komi, engine/network version, and visits
-- Show AI candidate moves, variations, win rate and estimated score
-- Do not infer professional players' internal thoughts as facts
+## Phase 2 — KataGo analysis integration (code added)
+
+- KataGo JSON analysis client: `src/katago_client.py`
+- Local config: `configs/analysis_local.cfg` (black winrate perspective)
+- GUI: user selects move N, app analyzes position after move N-1
+- Display black win rate, black score lead, top 3 candidate moves, and principal variations
+- Full engine and neural network binaries are **not** included. Install separately.
+- Current implementation launches one subprocess per analysis request; performance can be improved later with a persistent analysis process and memoized results.
+- The current output does **not** estimate the actual professional move's win-rate loss. For that, evaluate the position after the played move under comparable search settings.
+- The displayed candidate list is a recommendation from the *preceding position*, not a direct explanation of a professional player's intentions.
+- KataGo supports Chinese/Japanese settings as configured. Check the original SGF rules and komi: rules mismatch can change results.
+- Tests in `tests/test_katago_client.py` use simulated engine output; live engine integration has not been verified here.
+
+Official protocol: https://github.com/lightvector/KataGo/blob/master/docs/Analysis_Engine.md
 
 ## Phase 3 — RAG (planned)
 
-- Curate 20–30 learning notes about joseki, shape, life-and-death, thickness, sente and yose
-- Use EmbeddingGemma 2 to embed **explanatory text**, not the raw SGF tree
-- Retrieve from ChromaDB and provide citations
-- Combine retrieved concepts with real KataGo output for a Korean language tutor
+- Curate 20–30 explanatory notes on joseki, tesuji, shape, life-and-death, thickness, sente and yose
+- Use EmbeddingGemma 2 on explanatory text, not raw SGF tree
+- ChromaDB similarity search with source citations
+- Feed both the verified KataGo response and retrieved notes to a Korean-language LLM
+- Avoid attributing AI-derived interpretations to the professional player without an actual source
 
 ## Phase 4 — Personal learning (planned)
 
-- SQLite bookmarks and study notes
-- Review history of recurring tactical and conceptual gaps
+- Bookmarks, own questions, learning notes in SQLite
+- Personalized study sessions and repeated-theme review
 
-## Data
+## Data provenance and privacy
 
-SGF source: https://homepages.cwi.nl/~aeb/go/games/games/
+Source: https://homepages.cwi.nl/~aeb/go/games/games/
 
-Third-party annotations can carry separate rights from raw game records.
+Do not commit downloaded datasets, personal study records, or large model weights to Git. Third-party annotations may have separate rights from raw game records.
+
+Repository visibility: Private.
