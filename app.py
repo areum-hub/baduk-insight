@@ -8,6 +8,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 from sgfmill import sgf
 
+from src.cwi_source import ARCHIVE_URL, CWI_CHOICES, fetch_cwi_sgf
 from src.board_svg import render_board
 from src.katago_client import KataGoError, build_query, gtp_coord, run_analysis, top_candidates
 from src.local_settings import resolved_settings, save_settings, suggested_paths
@@ -98,16 +99,55 @@ with st.sidebar:
     raw = None
     name = ""
     if source == "Upload SGF":
-        st.markdown("**CWI 프로기사 기보 원본**")
-        st.caption("원본 페이지에서 원하는 SGF를 다운로드한 다음 아래에 업로드하세요.")
+        st.markdown("**CWI 원본 기보 연결**")
+        st.caption("CWI 원본을 앱에서 바로 열거나, 내 컴퓨터의 SGF 파일을 업로드하세요.")
         st.link_button(
-            "CWI 기보 원본 페이지 열기",
-            "https://homepages.cwi.nl/~aeb/go/games/games/",
+            "CWI 전체 기보 목록 보기", ARCHIVE_URL,
             use_container_width=True,
         )
-        uploaded = st.file_uploader("다운로드한 SGF 파일 선택", type=["sgf"])
-        if uploaded is not None:
-            raw, name = uploaded.getvalue(), uploaded.name
+        import_mode = st.radio(
+            "불러오는 방법",
+            ["CWI 원본에서 바로 열기", "내 컴퓨터 파일 업로드"],
+            key="sgf_import_mode",
+        )
+        if import_mode == "CWI 원본에서 바로 열기":
+            selection = st.selectbox(
+                "CWI 원본 기보",
+                ["직접 SGF 주소 입력", *CWI_CHOICES],
+                key="cwi_game_selection",
+                help="원본 사이트의 다른 대국도 SGF 파일 주소로 열 수 있습니다.",
+            )
+            if selection == "직접 SGF 주소 입력":
+                cwi_url = st.text_input(
+                    "SGF 원본 URL",
+                    placeholder="https://homepages.cwi.nl/~aeb/go/games/games/.../game.sgf",
+                    key="cwi_original_url",
+                ).strip()
+            else:
+                cwi_url = CWI_CHOICES[selection]
+                st.caption("선택한 CWI SGF 원본 파일을 직접 불러옵니다.")
+            if st.button("이 기보로 복기 시작", key="cwi_open_game", disabled=not cwi_url):
+                try:
+                    fetched_raw, fetched_name = fetch_cwi_sgf(cwi_url)
+                    st.session_state["cwi_loaded"] = {
+                        "url": cwi_url,
+                        "raw": fetched_raw,
+                        "name": fetched_name,
+                    }
+                    st.session_state.pop("cwi_load_error", None)
+                except ValueError as exc:
+                    st.session_state["cwi_loaded"] = None
+                    st.session_state["cwi_load_error"] = str(exc)
+            if st.session_state.get("cwi_load_error"):
+                st.error(st.session_state["cwi_load_error"])
+            loaded = st.session_state.get("cwi_loaded")
+            if loaded and loaded["url"] == cwi_url:
+                raw, name = loaded["raw"], loaded["name"]
+                st.success(f"복기 중: {name}")
+        else:
+            uploaded = st.file_uploader("SGF 파일 선택", type=["sgf"])
+            if uploaded is not None:
+                raw, name = uploaded.getvalue(), uploaded.name
     elif available:
         selected = st.selectbox("복기할 대국", available, format_func=lambda p: p.name)
         if selected:
@@ -141,7 +181,7 @@ with st.sidebar:
     st.caption("AI 탐색 횟수는 웹사이트 방문자 수와 무관합니다. CPU에서는 5~10회로 먼저 테스트하세요.")
 
 if raw is None:
-    st.info("왼쪽에서 기보를 선택하세요. 기보가 없다면 SGF 업로드에서 CWI 원본 링크를 열 수 있습니다.")
+    st.info("왼쪽에서 CWI 원본 기보를 선택하거나 SGF 파일을 업로드해 주세요.")
     st.stop()
 
 try:
