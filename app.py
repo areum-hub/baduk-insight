@@ -15,7 +15,6 @@ from src.sgf_service import load_sgf, replay
 from src.playback import advance, move_manually
 from src.ollama_client import OllamaError, chat
 from src.rag_pipeline import build_index, build_messages, get_collection, load_notes, retrieve
-from scripts.download_cwi_samples import download_samples
 
 PROJECT = Path(__file__).resolve().parent
 DATA_DIR = PROJECT / "data" / "sgf"
@@ -87,52 +86,34 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-def get_cwi_samples() -> None:
-    """Download a small set of example games without requiring a terminal."""
-    good, errors = download_samples()
-    st.session_state["cwi_download_result"] = {
-        "good": [p.name for p in good],
-        "errors": errors,
-    }
-    if good:
-        # Streamlit button callbacks run before widgets are instantiated.
-        st.session_state["source_mode"] = "Local CWI samples"
-
-
 available = sorted(DATA_DIR.glob("*.sgf")) if DATA_DIR.exists() else []
 with st.sidebar:
-    st.header("Load a game")
-    st.caption(f"Local SGF files: {len(available)}")
+    st.header("기보 불러오기")
     source = st.radio(
-        "Source", ["Local CWI samples", "Upload SGF"], key="source_mode",
+        "기보 선택 방법",
+        ["Local CWI samples", "Upload SGF"],
+        key="source_mode",
+        format_func=lambda item: "내 기보에서 선택" if item == "Local CWI samples" else "SGF 업로드",
     )
     raw = None
     name = ""
     if source == "Upload SGF":
-        uploaded = st.file_uploader("Choose SGF", type=["sgf"])
+        st.markdown("**CWI 프로기사 기보 원본**")
+        st.caption("원본 페이지에서 원하는 SGF를 다운로드한 다음 아래에 업로드하세요.")
+        st.link_button(
+            "CWI 기보 원본 페이지 열기",
+            "https://homepages.cwi.nl/~aeb/go/games/games/",
+            use_container_width=True,
+        )
+        uploaded = st.file_uploader("다운로드한 SGF 파일 선택", type=["sgf"])
         if uploaded is not None:
             raw, name = uploaded.getvalue(), uploaded.name
-        st.caption("기보 파일이 없다면 아래 샘플을 바로 받아보세요.")
     elif available:
-        selected = st.selectbox("Professional game", available, format_func=lambda p: p.name)
+        selected = st.selectbox("복기할 대국", available, format_func=lambda p: p.name)
         if selected:
             raw, name = selected.read_bytes(), selected.name
     else:
-        st.warning("아직 로컬 SGF 기보가 없습니다.")
-
-    st.button(
-        "샘플 기보 다운로드", key="get_cwi",
-        on_click=get_cwi_samples,
-        help="CWI 이세돌–알파고 기보 3판을 로컬 data/sgf 폴더에 저장합니다.",
-    )
-    download_result = st.session_state.get("cwi_download_result")
-    if download_result:
-        if download_result["good"]:
-            st.success(f"샘플 {len(download_result['good'])}판 준비 완료 — Local CWI samples에서 선택하세요.")
-        for error in download_result["errors"]:
-            st.error(f"샘플 다운로드 실패: {error}")
-    st.markdown("[CWI 기보 원본 보기](https://homepages.cwi.nl/~aeb/go/games/games/AlphaGo/)")
-    st.caption("샘플은 최대 3판만 내려받고, 기존 기보는 유지합니다.")
+        st.info("PC에 저장된 기보가 없습니다. 'SGF 업로드'에서 CWI 원본 기보를 받아 불러오세요.")
 
     st.divider()
     st.header("KataGo (local)")
@@ -159,7 +140,7 @@ with st.sidebar:
     st.caption("CPU 환경에서는 방문 수 5~10을 권장합니다. 경로는 PC 사용자 폴더를 기준으로 자동 제안됩니다.")
 
 if raw is None:
-    st.info("왼쪽 Download CWI games 버튼을 누르거나 Upload SGF에서 기보 파일을 불러오세요.")
+    st.info("왼쪽에서 기보를 선택하세요. 기보가 없다면 SGF 업로드에서 CWI 원본 링크를 열 수 있습니다.")
     st.stop()
 
 try:
