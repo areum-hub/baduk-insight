@@ -24,13 +24,18 @@ Status: code committed; real SGF download and application runtime test remain to
 
 Official protocol: https://github.com/lightvector/KataGo/blob/master/docs/Analysis_Engine.md
 
-## Phase 3 — RAG (planned)
+## Phase 3 — RAG study chatbot (source code added, live integration unverified)
 
-- Curate 20–30 explanatory notes on joseki, tesuji, shape, life-and-death, thickness, sente and yose
-- Use EmbeddingGemma 2 on explanatory text, not raw SGF tree
-- ChromaDB similarity search with source citations
-- Feed both the verified KataGo response and retrieved notes to a Korean-language LLM
-- Avoid attributing AI-derived interpretations to the professional player without an actual source
+- Local Ollama `/api/embed`: `embeddinggemma-2:270m`.
+- ChromaDB persistent index in `data/chroma/`, using only `knowledge/*.md` concept notes.
+- Local Ollama `/api/chat`: `qwen3:4b-instruct`, Korean conversational study assistant.
+- Retrieval: embed question, select up to three related concept documents, display file-path provenance.
+- Context: selected SGF turn and played move; **only** include KataGo data if the user actually ran analysis of the current exact turn with matching settings.
+- Answers distinguish general principles from actual move-by-move evaluation; do not guess win rates or professionals' intentions.
+- Session chat history is cleared when the SGF or move number changes; Phase 4 persistence is not yet implemented.
+- Models run locally; binaries and weights are not uploaded to Git.
+- `tests/test_rag_pipeline.py` tests prompts, index, embedding API contract and source labels using fakes. This is not a substitute for integration testing on the user's Windows PC.
+- Initial knowledge base contains 10 original elementary Baduk concept notes, which will need expansion and expert review.
 
 ## Phase 4 — Personal learning (planned)
 
