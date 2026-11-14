@@ -14,7 +14,7 @@ from src.katago_client import KataGoError, build_query, gtp_coord, run_analysis,
 from src.local_settings import resolved_settings, save_settings, suggested_paths
 from src.sgf_service import load_sgf, replay
 from src.playback import advance, move_manually
-from src.ollama_client import OllamaError, chat
+from src.ollama_client import OllamaError, chat_stream
 from src.rag_pipeline import build_index, build_messages, get_collection, load_notes, retrieve
 
 PROJECT = Path(__file__).resolve().parent
@@ -251,9 +251,9 @@ with st.sidebar:
 
 with st.sidebar:
     st.divider()
-    st.header("RAG learning (local)")
-    st.caption("Ollama에서 embeddinggemma-2:270m 및 qwen3:4b-instruct 모델을 미리 설치하세요.")
-    if st.button("Build / refresh knowledge index"):
+    st.header("AI 학습 도우미")
+    st.caption("바둑 개념을 검색해 이해하기 쉽게 답합니다.")
+    if st.button("학습 자료 준비 / 새로고침"):
         try:
             notes = load_notes()
             with st.spinner("바둑 개념 임베딩 생성 중..."):
@@ -263,7 +263,7 @@ with st.sidebar:
             st.error(f"색인 실패: {exc}")
     try:
         note_count = get_collection().count()
-        st.caption(f"현재 검색 색인: {note_count}개 학습 문서")
+        st.caption(f"학습 자료 {note_count}개 준비됨" if note_count else "학습 자료를 준비해 주세요.")
     except (OSError, RuntimeError, ValueError) as exc:
         st.warning(f"ChromaDB 초기화 실패: {exc}")
 
@@ -417,11 +417,32 @@ with right:
                 st.caption(f"AI 탐색 횟수: {root_info.get('visits', '확인 불가')}회 · 분석 기준: {analysis.get('turnNumber', '확인 불가')}수 이후")
                 suggestions = top_candidates(analysis)
                 if suggestions:
-                    st.markdown("**AI 추천 후보 수 (최대 3개)**")
-                    for candidate in suggestions:
-                        st.write(f"{int(candidate.get('order', 0))+1}. **{candidate.get('move', '?')}** · AI 탐색 {candidate.get('visits', '?')}회")
-                        if candidate.get("pv"):
-                            st.caption("변화도: " + " → ".join(candidate["pv"][:10]))
+                    st.markdown("#### AI가 고려한 착수")
+                    st.caption(
+                        "첫 번째 후보가 KataGo의 우선 추천입니다. "
+                        "아래 예상 진행은 실제로 둔 수가 아니라 AI가 계산한 가상 수순입니다."
+                    )
+                    for rank, candidate in enumerate(suggestions, start=1):
+                        move = str(candidate.get("move", "확인 불가"))
+                        heading = "가장 추천하는 수" if rank == 1 else f"{rank}순위 대안"
+                        with st.container(border=True):
+                            st.markdown(f"**{heading} · {move}**")
+                            pv = candidate.get("pv") or []
+                            if pv:
+                                preview = "  →  ".join(
+                                    f"{step}수 {coord}"
+                                    for step, coord in enumerate(pv[:6], start=1)
+                                )
+                                st.caption(f"이 수를 둔다면 AI가 예상하는 진행: {preview}")
+                            else:
+                                st.caption("예상 진행 수순은 제공되지 않았습니다.")
+                            st.caption(
+                                f"이 후보를 검토한 AI 탐색: {candidate.get('visits', '확인 불가')}회"
+                            )
+                    st.caption(
+                        "AI 탐색 횟수는 웹사이트 방문자 수가 아닌, "
+                        "KataGo가 후보를 계산하면서 탐색한 횟수입니다."
+                    )
                     actual = gtp_coord(record.moves[turn-1][1], record.size)
                     best = str(suggestions[0].get("move", "알 수 없음"))
                     st.markdown("#### 실제 착수와 AI 추천 비교")
@@ -490,7 +511,7 @@ with right:
             st.markdown(question)
         with st.chat_message("assistant"):
             try:
-                hits = retrieve(question, top_k=3)
+                hits = retrieve(question, top_k=2)
                 if not hits:
                     reply = "검색 색인이 비어 있습니다. 왼쪽에서 'Build / refresh knowledge index'를 먼저 실행해 주세요."
                     st.markdown(reply)
@@ -510,9 +531,8 @@ with right:
                         "analysis": current_analysis,
                     }
                     prompt = build_messages(question, hits, scene, history)
-                    with st.spinner("근거 문서로 답변 생성 중..."):
-                        reply = chat(prompt)
-                    st.markdown(reply)
+                    with st.status("관련 학습 자료를 찾았습니다. 답변을 작성하는 중...", expanded=False):
+                        reply = st.write_stream(chat_stream(prompt))
                     with st.expander("검색 근거 문서", expanded=True):
                         for source in hits:
                             st.caption(f"{source['title']} · knowledge/{source['path']}")
