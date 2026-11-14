@@ -1,20 +1,24 @@
-"""Tests for locally persisted KataGo file paths and fast-study defaults."""
-import json
-
+"""Tests for locally persisted CPU KataGo setup."""
 import pytest
 
-from src.local_settings import load_settings, save_settings, suggested_paths
+from src.local_settings import (
+    LIGHT_MODEL_NAME,
+    load_settings,
+    resolved_settings,
+    save_settings,
+    suggested_paths,
+)
 
 
 def test_local_round_trip(tmp_path):
     path = tmp_path / "data" / "local" / "katago_settings.json"
     assert load_settings(path) == {}
-    save_settings(path, "C:/KataGo/katago.exe", "C:/models/weights.bin.gz", "config.cfg", 10)
+    save_settings(path, "C:/KataGo/katago.exe", "C:/models/weights.txt.gz", "config.cfg", 5)
     assert load_settings(path) == {
         "binary": "C:/KataGo/katago.exe",
-        "model": "C:/models/weights.bin.gz",
+        "model": "C:/models/weights.txt.gz",
         "config": "config.cfg",
-        "visits": 10,
+        "visits": 5,
     }
 
 
@@ -27,29 +31,44 @@ def test_invalid_saved_json(tmp_path):
 
 def test_invalid_visit_count(tmp_path):
     with pytest.raises(ValueError):
-        save_settings(tmp_path / "settings.json", "katago", "model.bin.gz", "cfg", 200)
+        save_settings(tmp_path / "settings.json", "katago", "model.txt.gz", "cfg", 200)
 
 
-def test_auto_suggestion_requires_unambiguous_model(monkeypatch, tmp_path):
+def test_user_home_default_with_fixed_small_model(monkeypatch, tmp_path):
     home = tmp_path / "home"
-    downloads = home / "Downloads"
-    downloads.mkdir(parents=True)
-    (downloads / "a.bin.gz").write_bytes(b"test")
-    (downloads / "b.bin.gz").write_bytes(b"test")
+    (home / "Downloads").mkdir(parents=True)
+    (home / "KataGo").mkdir()
+    (home / "KataGo" / "katago.exe").write_bytes(b"exe")
     monkeypatch.setattr("src.local_settings.Path.home", lambda: home)
     defaults = suggested_paths(tmp_path)
-    assert defaults["visits"] == 10
-    assert defaults["model"] == ""
-    (downloads / "b.bin.gz").unlink()
-    assert suggested_paths(tmp_path)["model"].endswith("a.bin.gz")
+    assert defaults["visits"] == 5
+    assert defaults["binary"] == str(home / "KataGo" / "katago.exe")
+    assert defaults["model"] == str(home / "Downloads" / LIGHT_MODEL_NAME)
+    assert defaults["config"] == str(tmp_path / "configs" / "analysis_local.cfg")
 
 
-def test_small_model_is_preferred_when_other_models_exist(monkeypatch, tmp_path):
+def test_previous_large_model_migrated_to_small(monkeypatch, tmp_path):
     home = tmp_path / "home"
-    downloads = home / "Downloads"
-    downloads.mkdir(parents=True)
-    (downloads / "large.bin.gz").write_bytes(b"large")
-    small = downloads / "kata1-b10c128-s1141046784-d204142634.txt.gz"
-    small.write_bytes(b"small")
+    (home / "Downloads").mkdir(parents=True)
     monkeypatch.setattr("src.local_settings.Path.home", lambda: home)
-    assert suggested_paths(tmp_path)["model"] == str(small)
+    saved = tmp_path / "data" / "local" / "katago_settings.json"
+    save_settings(
+        saved,
+        "katago",
+        str(home / "Downloads" / "kata1-tf3-b11c768-s12382M-d6533M.bin.gz"),
+        str(tmp_path / "configs" / "analysis_local.cfg"),
+        100,
+    )
+    resolved = resolved_settings(tmp_path, saved)
+    assert resolved["model"] == str(home / "Downloads" / LIGHT_MODEL_NAME)
+    assert resolved["visits"] == 5
+
+
+def test_custom_model_is_preserved(monkeypatch, tmp_path):
+    home = tmp_path / "home"
+    monkeypatch.setattr("src.local_settings.Path.home", lambda: home)
+    saved = tmp_path / "data" / "local" / "katago_settings.json"
+    save_settings(saved, "katago", "D:/weights/custom.txt.gz", "config.cfg", 25)
+    resolved = resolved_settings(tmp_path, saved)
+    assert resolved["model"] == "D:/weights/custom.txt.gz"
+    assert resolved["visits"] == 25
