@@ -405,12 +405,28 @@ with right:
                 st.caption("이 분석은 해당 수를 평가하기 *전*의 후보 비교입니다. 실수 여부나 승률 손실을 판단하려면 착수 이후 국면도 별도로 비교해야 합니다.")
 
     st.divider()
-    st.markdown("### AI 바둑 학습 챗봇")
-    st.caption("선택한 국면과 검색한 바둑 학습 문서를 근거로 한국어로 질문하세요.")
+    st.markdown("### 바둑 AI에게 물어보기")
+    current_move_label = (
+        f"{turn}수 · {gtp_coord(record.moves[turn-1][1], record.size)}"
+        if turn else "대국 시작 전"
+    )
+    st.caption(f"현재 복기 장면: {current_move_label}")
     scene_id = (digest, turn)
     if st.session_state.get("rag_scene") != scene_id:
         st.session_state.rag_scene = scene_id
         st.session_state.rag_messages = []
+
+    # One-click starter questions are visible when the conversation is empty.
+    starter_question = None
+    if not st.session_state.rag_messages:
+        st.markdown("**어떤 점이 궁금하세요?**")
+        st.caption("아래 질문을 선택하거나 직접 입력해 보세요.")
+        if st.button("이 수에서 중요한 바둑 개념은?", key="study_starter_1", use_container_width=True):
+            starter_question = "현재 국면을 공부할 때 알아두면 좋은 바둑 개념을 설명해줘."
+        if st.button("돌의 연결은 왜 중요할까?", key="study_starter_2", use_container_width=True):
+            starter_question = "돌의 연결이 중요한 이유를 초보자도 이해하기 쉽게 설명해줘."
+        if st.button("축과 장문은 어떻게 다를까?", key="study_starter_3", use_container_width=True):
+            starter_question = "축과 장문의 차이를 쉽게 설명해줘."
     for message in st.session_state.rag_messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
@@ -418,7 +434,12 @@ with right:
                 with st.expander("검색 근거 문서"):
                     for source in message["sources"]:
                         st.caption(f"{source['title']} · knowledge/{source['path']}")
-    question = st.chat_input("예: 왜 중앙의 연결이 중요해?", disabled=st.session_state.playing)
+    typed_question = st.chat_input(
+        "바둑에서 궁금한 점을 입력하세요...",
+        disabled=st.session_state.playing,
+        key="study_chat_input",
+    )
+    question = starter_question or typed_question
     if question:
         history = list(st.session_state.rag_messages)
         st.session_state.rag_messages.append({"role": "user", "content": question})
@@ -462,5 +483,8 @@ with right:
                 # Failed turns are not part of chat history.
                 st.session_state.rag_messages.pop()
 
-    st.caption("현재 장면을 변경하면 이 화면의 대화가 새로 시작됩니다. 별도의 장기 학습 기록은 Phase 4 예정입니다.")
-    st.caption("프로기사의 실제 의도는 확인할 수 없으며, AI 설명은 학습 참고용입니다.")
+    with st.expander("AI 설명에 대해 알아두기"):
+        st.caption(
+            "답변은 검색된 바둑 학습 노트를 근거로 작성됩니다. "
+            "KataGo 분석을 실행하지 않았다면 실제 착수의 정확한 승률이나 우열을 판단하지 않습니다."
+        )
