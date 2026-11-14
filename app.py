@@ -75,6 +75,64 @@ st.markdown(
         font-weight: 700 !important;
         color: inherit !important;
     }
+    /* The sidebar keeps all current controls; only presentation changes. */
+    section[data-testid="stSidebar"] {
+        border-right: 1px solid rgba(137, 111, 78, 0.18);
+    }
+    section[data-testid="stSidebar"] > div:first-child {
+        background: color-mix(in srgb, var(--secondary-background-color, #f8f6f2) 90%, #d9bb8c 10%);
+    }
+    section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {
+        padding-top: 1.2rem;
+        padding-bottom: 2rem;
+    }
+    section[data-testid="stSidebar"] h3 {
+        border-left: 4px solid #b68a57;
+        padding: 0.35rem 0.7rem !important;
+        margin: 0.15rem 0 0.35rem !important;
+        border-radius: 0 8px 8px 0;
+        background: rgba(172, 127, 73, 0.085);
+        font-size: 1.02rem !important;
+        letter-spacing: -0.02em;
+        font-weight: 700;
+    }
+    section[data-testid="stSidebar"] hr {
+        margin: 1.45rem 0 !important;
+        border-color: rgba(137, 111, 78, 0.24);
+    }
+    section[data-testid="stSidebar"] [data-testid="stRadio"] {
+        padding: 0.65rem 0.8rem;
+        border: 1px solid rgba(137, 111, 78, 0.16);
+        background: rgba(255, 255, 255, 0.055);
+        border-radius: 12px;
+    }
+    section[data-testid="stSidebar"] [data-testid="stMetric"] {
+        padding: 0.75rem 0.85rem;
+        border-radius: 12px;
+        border: 1px solid rgba(137, 111, 78, 0.2);
+        background: rgba(172, 127, 73, 0.065);
+    }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] details {
+        border: 1px solid rgba(137, 111, 78, 0.2);
+        border-radius: 12px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.045);
+    }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] summary {
+        font-weight: 600;
+        border-radius: 12px;
+    }
+    section[data-testid="stSidebar"] button:not([data-testid="stSidebarCollapseButton"]) {
+        border-radius: 11px;
+        transition: border-color .18s ease, background .18s ease;
+    }
+    section[data-testid="stSidebar"] input,
+    section[data-testid="stSidebar"] [data-baseweb="select"] > div {
+        border-radius: 10px;
+    }
+    section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] {
+        line-height: 1.55;
+    }
     </style>
     <div class="bi-brand-header">
         <span class="bi-stones" aria-hidden="true">
