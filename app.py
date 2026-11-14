@@ -301,7 +301,24 @@ def show_replay():
         st.error(f"Could not replay move: {exc}")
         return
     height = 625 if record.size == 19 else (510 if record.size == 13 else 410)
-    components.html(render_board(board, last_move=last), height=height, scrolling=False)
+    current_key = (
+        digest, current, rules, float(komi), visits, binary, model, config
+    )
+    ai_point = None
+    if (
+        current > 0
+        and st.session_state.get("analysis_key") == current_key
+        and st.session_state.get("analysis_result")
+    ):
+        candidates = top_candidates(st.session_state["analysis_result"])
+        ai_point = candidates[0].get("move") if candidates else None
+    components.html(
+        render_board(board, last_move=last, ai_suggestion=ai_point),
+        height=height,
+        scrolling=False,
+    )
+    if ai_point:
+        st.caption("🟠 주황 테두리: 실제 착수   ·   🔵 파란 테두리: AI 추천 위치")
 
 with left:
     show_replay()
@@ -317,7 +334,7 @@ with right:
         st.write(f"Last played: **{who} {gtp_coord(point, record.size)}**")
 
     st.divider()
-    st.markdown("### KataGo analysis")
+    st.markdown("### AI 착수 분석 · KataGo")
     if st.session_state.playing:
         st.caption("분석하려면 일시정지하세요.")
     st.caption("현재 표시된 수가 아닌, 그 수를 두기 **직전의 국면**에서 AI 추천 수를 분석합니다.")
@@ -356,14 +373,32 @@ with right:
                 st.caption(f"검색 방문 수: {root_info.get('visits', 'unknown')} · 분석 국면: {analysis.get('turnNumber', 'unknown')}수 이후")
                 suggestions = top_candidates(analysis)
                 if suggestions:
-                    st.markdown("**AI 추천 후보 수**")
+                    st.markdown("**AI 추천 후보 수 (최대 3개)**")
                     for candidate in suggestions:
                         st.write(f"{int(candidate.get('order', 0))+1}. **{candidate.get('move', '?')}** · 방문 수 {candidate.get('visits', '?')}")
                         if candidate.get("pv"):
                             st.caption("변화도: " + " → ".join(candidate["pv"][:10]))
                     actual = gtp_coord(record.moves[turn-1][1], record.size)
-                    best = suggestions[0].get("move")
-                    st.info(f"실제 프로기사 착수: {actual} · AI 첫 추천: {best}")
+                    best = str(suggestions[0].get("move", "알 수 없음"))
+                    st.markdown("#### 실제 착수와 AI 추천 비교")
+                    played_col, ai_col = st.columns(2)
+                    with played_col:
+                        st.markdown("🟠 **프로기사의 실제 착수**")
+                        st.metric("실제 놓은 위치", actual)
+                    with ai_col:
+                        st.markdown("🔵 **KataGo가 추천하는 착수**")
+                        st.metric("AI 추천 위치", best)
+                    if actual.upper() == best.upper():
+                        st.success("실제 착수와 AI의 첫 번째 추천이 일치합니다.")
+                    else:
+                        st.caption(
+                            "서로 다른 위치를 제안했습니다. 파란 원은 바둑판에 표시되는 "
+                            "AI 추천 위치입니다. 위치가 다르다고 곧바로 실수라는 뜻은 아닙니다."
+                        )
+                    st.caption(
+                        "이 추천은 실제 수를 두기 전 국면에서 계산했습니다. "
+                        "승률 손실을 알려면 착수 후 분석을 추가로 비교해야 합니다."
+                    )
                 else:
                     st.warning("후보 수가 반환되지 않았습니다.")
                 st.caption("이 분석은 해당 수를 평가하기 *전*의 후보 비교입니다. 실수 여부나 승률 손실을 판단하려면 착수 이후 국면도 별도로 비교해야 합니다.")
