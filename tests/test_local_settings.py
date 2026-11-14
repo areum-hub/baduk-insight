@@ -42,3 +42,14 @@ def test_auto_suggestion_requires_unambiguous_model(monkeypatch, tmp_path):
     assert defaults["model"] == ""
     (downloads / "b.bin.gz").unlink()
     assert suggested_paths(tmp_path)["model"].endswith("a.bin.gz")
+
+
+def test_small_model_is_preferred_when_other_models_exist(monkeypatch, tmp_path):
+    home = tmp_path / "home"
+    downloads = home / "Downloads"
+    downloads.mkdir(parents=True)
+    (downloads / "large.bin.gz").write_bytes(b"large")
+    small = downloads / "kata1-b10c128-s1141046784-d204142634.txt.gz"
+    small.write_bytes(b"small")
+    monkeypatch.setattr("src.local_settings.Path.home", lambda: home)
+    assert suggested_paths(tmp_path)["model"] == str(small)
