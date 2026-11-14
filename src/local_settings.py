@@ -53,9 +53,11 @@ def suggested_paths(project: Path) -> dict:
     home = Path.home()
     binary = home / "KataGo" / "katago.exe"
     candidates = sorted(list((home / "Downloads").glob("*.bin.gz")) + list((home / "Downloads").glob("*.txt.gz")))
+    small = [p for p in candidates if "b10c128" in p.name.lower()]
+    model = small[0] if len(small) == 1 else candidates[0] if len(candidates) == 1 else None
     return {
         "binary": str(binary) if binary.is_file() else "katago",
-        "model": str(candidates[0]) if len(candidates) == 1 else "",
+        "model": str(model) if model is not None else "",
         "config": str(project / "configs" / "analysis_local.cfg"),
         "visits": 10,
     }
