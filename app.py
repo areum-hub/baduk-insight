@@ -171,40 +171,43 @@ except ValueError:
 
 with st.sidebar:
     st.divider()
-    st.subheader("대국 규칙 · 덤 설정")
-    st.caption("KataGo가 형세와 추천 수를 계산할 때 사용하는 기준입니다.")
-    rule_labels = {
-        "chinese": "중국식 · 돌과 집을 함께 계산",
-        "japanese": "일본식 · 집을 중심으로 계산",
-    }
-    rules = st.selectbox(
-        "집 계산 방식",
-        options=["chinese", "japanese"],
-        index=0 if suggested_rules == "chinese" else 1,
-        format_func=lambda key: rule_labels[key],
-        help="실제 대국의 규칙과 맞춰 주세요. 중국식은 돌과 집, 일본식은 집을 중심으로 계산합니다.",
-    )
-    komi = st.number_input(
-        "백에게 주는 덤 (집)",
-        min_value=-20.0, max_value=30.0,
-        value=suggested_komi, step=0.5,
-        help="덤(Komi)은 먼저 두는 흑의 이점을 보정하기 위해 백에게 더해 주는 점수입니다. 6.5는 백에게 6.5집을 더한다는 뜻입니다.",
-    )
-    recorded_rules = sgf_property("RU", "")
-    recorded_komi = sgf_property("KM", "")
-    if recorded_rules:
-        st.caption(f"원본 기보의 규칙: {recorded_rules}")
-    else:
-        st.caption("원본 기보에 규칙 정보가 없어 계산 방식을 직접 확인해야 합니다.")
-    if recorded_komi:
-        st.caption(f"원본 기보의 덤: {recorded_komi}집")
-    else:
-        st.caption("원본 기보에 덤 정보가 없어 기본값으로 표시했습니다.")
-    st.info(
-        "예: 덤 6.5집은 바둑이 끝났을 때 백의 점수에 6.5집을 더한다는 의미입니다. "
-        "이 설정은 바둑판의 돌 색상이나 착수 위치를 바꾸지 않고 AI 분석 결과에만 영향을 줍니다.",
-        icon="ℹ️",
-    )
+    # Rules and komi affect KataGo estimates, but need not clutter SGF study UI.
+    with st.expander("AI 계산 기준 · 상세 설정", expanded=False):
+        st.caption("승률과 예상 집 차이를 계산할 때 사용하는 설정입니다. 기보 재생에는 영향을 주지 않습니다.")
+        rule_labels = {
+            "chinese": "중국식 (돌과 집을 함께 계산)",
+            "japanese": "일본식 (집을 중심으로 계산)",
+        }
+        rules = st.selectbox(
+            "계산 규칙",
+            options=["chinese", "japanese"],
+            index=0 if suggested_rules == "chinese" else 1,
+            format_func=lambda key: rule_labels[key],
+            help="원본 대국 규칙과 일치시켜야 분석 수치가 정확해집니다.",
+        )
+        komi = st.number_input(
+            "백의 덤 (집)",
+            min_value=-20.0, max_value=30.0,
+            value=suggested_komi, step=0.5,
+            help="먼저 두는 흑의 이점을 보정하기 위해 백에게 주는 점수입니다.",
+        )
+        recorded_rules = sgf_property("RU", "")
+        recorded_komi = sgf_property("KM", "")
+        if not recorded_rules:
+            st.warning(
+                "원본 기보에는 규칙이 기록되지 않았습니다. 현재 중국식은 임시 기본값이며 "
+                "실제 대국 규칙과 다를 수 있습니다.",
+                icon="⚠️",
+            )
+        else:
+            st.caption(f"기보에 기록된 규칙: {recorded_rules}")
+        if recorded_komi:
+            st.caption(f"기보에 기록된 덤: {recorded_komi}집")
+        else:
+            st.caption("기보에 덤 기록이 없어 임시 기본값을 사용합니다.")
+    rule_name = "중국식" if rules == "chinese" else "일본식"
+    note = " · 기보 규칙 미확인" if not sgf_rules else ""
+    st.caption(f"AI 계산: {rule_name} · 백 덤 {komi:g}집{note}")
 
 with st.sidebar:
     st.divider()
