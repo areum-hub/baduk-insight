@@ -126,10 +126,11 @@ with st.sidebar:
     model = st.text_input("Neural net model path (.bin.gz or .txt.gz)", value=katago_preferences["model"])
     config = st.text_input("Analysis config path", value=katago_preferences["config"])
     visits = st.select_slider(
-        "Maximum visits", options=[5, 10, 25, 50, 100],
+        "AI 탐색 횟수", options=[5, 10, 25, 50, 100],
+        help="KataGo가 다음 수를 판단하기 위해 탐색하는 횟수입니다. 횟수가 적으면 빠르지만 분석의 신뢰도가 낮아질 수 있습니다." ,
         value=katago_preferences["visits"] if katago_preferences["visits"] in (5, 10, 25, 50, 100) else 10,
     )
-    if st.button("KataGo 설정 저장", help="경로와 방문 수를 이 컴퓨터에만 저장합니다."):
+    if st.button("KataGo 설정 저장", help="경로와 AI 탐색 횟수를 이 컴퓨터에만 저장합니다."):
         try:
             save_settings(LOCAL_KATAGO_SETTINGS, binary, model, config, visits)
             st.success("설정을 이 PC에 저장했습니다. 다음 실행에도 유지됩니다.")
@@ -137,7 +138,7 @@ with st.sidebar:
             st.error(f"설정 저장 실패: {exc}")
     if not Path(model).is_file():
         st.caption("경량 모델을 Downloads 폴더에 놓으면 기본 경로에서 자동 인식합니다.")
-    st.caption("CPU 환경에서는 방문 수 5~10을 권장합니다. 경로는 PC 사용자 폴더를 기준으로 자동 제안됩니다.")
+    st.caption("AI 탐색 횟수는 웹사이트 방문자 수와 무관합니다. CPU에서는 5~10회로 먼저 테스트하세요.")
 
 if raw is None:
     st.info("왼쪽에서 기보를 선택하세요. 기보가 없다면 SGF 업로드에서 CWI 원본 링크를 열 수 있습니다.")
@@ -370,12 +371,12 @@ with right:
                 score_lead = root_info.get("scoreLead")
                 if isinstance(score_lead, (int, float)):
                     st.metric("예상 점수 차이 (흑 기준)", f"{score_lead:+.1f}집")
-                st.caption(f"검색 방문 수: {root_info.get('visits', 'unknown')} · 분석 국면: {analysis.get('turnNumber', 'unknown')}수 이후")
+                st.caption(f"AI 탐색 횟수: {root_info.get('visits', '확인 불가')}회 · 분석 기준: {analysis.get('turnNumber', '확인 불가')}수 이후")
                 suggestions = top_candidates(analysis)
                 if suggestions:
                     st.markdown("**AI 추천 후보 수 (최대 3개)**")
                     for candidate in suggestions:
-                        st.write(f"{int(candidate.get('order', 0))+1}. **{candidate.get('move', '?')}** · 방문 수 {candidate.get('visits', '?')}")
+                        st.write(f"{int(candidate.get('order', 0))+1}. **{candidate.get('move', '?')}** · AI 탐색 {candidate.get('visits', '?')}회")
                         if candidate.get("pv"):
                             st.caption("변화도: " + " → ".join(candidate["pv"][:10]))
                     actual = gtp_coord(record.moves[turn-1][1], record.size)
