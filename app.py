@@ -297,6 +297,18 @@ with st.sidebar:
             source_count = len(source_notes)
             index_count = get_collection().count()
             st.metric("보유한 바둑 학습 노트", f"{source_count}개")
+            # Only a short list to help people ask the chat about available concepts.
+            if source_notes:
+                topic_names = [
+                    next(
+                        (line[2:].strip() for line in note["text"].splitlines()
+                         if line.startswith("# ")),
+                        note["title"],
+                    )
+                    for note in source_notes
+                ]
+                st.caption("질문해 볼 주제 · " + " · ".join(topic_names[:8]))
+
             st.caption(f"AI 검색에 등록된 문서: {index_count}개")
             if index_count != source_count:
                 st.info("학습 노트와 검색 데이터의 개수가 다릅니다. 아래에서 동기화해 주세요.")
