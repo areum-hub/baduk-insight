@@ -89,7 +89,7 @@ st.markdown(
 
 available = sorted(DATA_DIR.glob("*.sgf")) if DATA_DIR.exists() else []
 with st.sidebar:
-    st.header("기보 불러오기")
+    st.subheader("01 · 기보 선택")
     source = st.radio(
         "기보 선택 방법",
         ["Local CWI samples", "Upload SGF"],
@@ -156,29 +156,36 @@ with st.sidebar:
         st.info("PC에 저장된 기보가 없습니다. 'SGF 업로드'에서 CWI 원본 기보를 받아 불러오세요.")
 
     st.divider()
-    st.header("KataGo (local)")
+    st.subheader("02 · AI 착수 분석")
+    st.caption("필요한 착수에서만 AI 분석을 실행합니다.")
     try:
         katago_preferences = resolved_settings(PROJECT, LOCAL_KATAGO_SETTINGS)
     except ValueError as exc:
         st.warning(str(exc))
         katago_preferences = suggested_paths(PROJECT)
-    binary = st.text_input("KataGo executable (path or katago)", value=katago_preferences["binary"])
-    model = st.text_input("Neural net model path (.bin.gz or .txt.gz)", value=katago_preferences["model"])
-    config = st.text_input("Analysis config path", value=katago_preferences["config"])
-    visits = st.select_slider(
-        "AI 탐색 횟수", options=[5, 10, 25, 50, 100],
-        help="KataGo가 다음 수를 판단하기 위해 탐색하는 횟수입니다. 횟수가 적으면 빠르지만 분석의 신뢰도가 낮아질 수 있습니다." ,
-        value=katago_preferences["visits"] if katago_preferences["visits"] in (5, 10, 25, 50, 100) else 10,
-    )
-    if st.button("KataGo 설정 저장", help="경로와 AI 탐색 횟수를 이 컴퓨터에만 저장합니다."):
-        try:
-            save_settings(LOCAL_KATAGO_SETTINGS, binary, model, config, visits)
-            st.success("설정을 이 PC에 저장했습니다. 다음 실행에도 유지됩니다.")
-        except (OSError, ValueError) as exc:
-            st.error(f"설정 저장 실패: {exc}")
-    if not Path(model).is_file():
-        st.caption("경량 모델을 Downloads 폴더에 놓으면 기본 경로에서 자동 인식합니다.")
-    st.caption("AI 탐색 횟수는 웹사이트 방문자 수와 무관합니다. CPU에서는 5~10회로 먼저 테스트하세요.")
+    binary = katago_preferences["binary"]
+    model = katago_preferences["model"]
+    config = katago_preferences["config"]
+    visits = katago_preferences["visits"]
+    if Path(binary).is_file() and Path(model).is_file():
+        st.caption("KataGo 실행 파일 및 모델 경로 확인됨")
+    else:
+        st.caption("KataGo 설치 파일이나 모델을 확인해 주세요.")
+    with st.expander("엔진 설정 및 분석 강도", expanded=False):
+        binary = st.text_input("KataGo 실행 파일", value=binary)
+        model = st.text_input("신경망 모델 파일", value=model)
+        config = st.text_input("분석 설정 파일", value=config)
+        visits = st.select_slider(
+            "AI 탐색 횟수", options=[5, 10, 25, 50, 100],
+            value=visits if visits in (5, 10, 25, 50, 100) else 5,
+            help="수치가 작을수록 분석이 빠르지만 결과가 덜 안정적일 수 있습니다.",
+        )
+        if st.button("이 PC에 분석 설정 저장", key="save_katago"):
+            try:
+                save_settings(LOCAL_KATAGO_SETTINGS, binary, model, config, visits)
+                st.success("설정이 PC에 저장되었습니다.")
+            except (OSError, ValueError) as exc:
+                st.error(f"설정 저장 실패: {exc}")
 
 if raw is None:
     st.info("왼쪽에서 CWI 원본 기보를 선택하거나 SGF 파일을 업로드해 주세요.")
@@ -210,9 +217,8 @@ except ValueError:
     suggested_komi = 7.5
 
 with st.sidebar:
-    st.divider()
     # Rules and komi affect KataGo estimates, but need not clutter SGF study UI.
-    with st.expander("AI 계산 기준 · 상세 설정", expanded=False):
+    with st.expander("대국 규칙 · 덤 (필요할 때만)", expanded=False):
         st.caption("승률과 예상 집 차이를 계산할 때 사용하는 설정입니다. 기보 재생에는 영향을 주지 않습니다.")
         rule_labels = {
             "chinese": "중국식 (돌과 집을 함께 계산)",
@@ -247,25 +253,32 @@ with st.sidebar:
             st.caption("기보에 덤 기록이 없어 임시 기본값을 사용합니다.")
     rule_name = "중국식" if rules == "chinese" else "일본식"
     note = " · 기보 규칙 미확인" if not sgf_rules else ""
-    st.caption(f"AI 계산: {rule_name} · 백 덤 {komi:g}집{note}")
+
 
 with st.sidebar:
     st.divider()
-    st.header("AI 학습 도우미")
-    st.caption("바둑 개념을 검색해 이해하기 쉽게 답합니다.")
-    if st.button("학습 자료 준비 / 새로고침"):
-        try:
-            notes = load_notes()
-            with st.spinner("바둑 개념 임베딩 생성 중..."):
-                indexed = build_index(notes)
-            st.success(f"{indexed}개 학습 문서 색인 완료")
-        except (OllamaError, ValueError, RuntimeError, OSError) as exc:
-            st.error(f"색인 실패: {exc}")
+    st.subheader("03 · AI 학습 자료")
     try:
-        note_count = get_collection().count()
-        st.caption(f"학습 자료 {note_count}개 준비됨" if note_count else "학습 자료를 준비해 주세요.")
+        source_notes = load_notes()
+        source_count = len(source_notes)
+        index_count = get_collection().count()
+        st.metric("보유한 바둑 학습 노트", f"{source_count}개")
+        st.caption(f"AI 검색에 등록된 문서: {index_count}개")
+        if index_count != source_count:
+            st.info("학습 노트와 검색 데이터의 개수가 다릅니다. 아래에서 동기화해 주세요.")
+        else:
+            st.caption("학습 자료와 검색 색인의 문서 수가 일치합니다.")
+        with st.expander("학습 자료 관리", expanded=index_count != source_count):
+            if st.button("AI 검색 자료 동기화", key="refresh_knowledge", use_container_width=True):
+                try:
+                    with st.spinner("학습 자료를 검색용으로 등록하는 중..."):
+                        indexed = build_index(source_notes)
+                    st.success(f"{indexed}개 문서 등록 완료")
+                    st.rerun()
+                except (OllamaError, ValueError, RuntimeError, OSError) as exc:
+                    st.error(f"자료 등록 실패: {exc}")
     except (OSError, RuntimeError, ValueError) as exc:
-        st.warning(f"ChromaDB 초기화 실패: {exc}")
+        st.error(f"학습 자료 상태를 확인하지 못했습니다: {exc}")
 
 digest = hashlib.sha256(raw).hexdigest()
 if st.session_state.get("game_digest") != digest:
