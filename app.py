@@ -125,7 +125,7 @@ with st.sidebar:
         st.warning(str(exc))
         katago_preferences = suggested_paths(PROJECT)
     binary = st.text_input("KataGo executable (path or katago)", value=katago_preferences["binary"])
-    model = st.text_input("Neural net model path (.bin.gz)", value=katago_preferences["model"])
+    model = st.text_input("Neural net model path (.bin.gz or .txt.gz)", value=katago_preferences["model"])
     config = st.text_input("Analysis config path", value=katago_preferences["config"])
     visits = st.select_slider(
         "Maximum visits", options=[5, 10, 25, 50, 100],
