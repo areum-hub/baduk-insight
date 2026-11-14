@@ -6,6 +6,34 @@
 
 [← README](../README.md) · [개발 기록](DEVELOPMENT_LOG.md)
 
+## GitHub 최신 코드와 동기화하여 실행
+
+이미 프로젝트를 설치했다면 아래 순서로 실행하세요.
+
+**처음 한 번 (동기화 시작 스크립트 받아오기):**
+
+```powershell
+cd "C:\Windows\System32\baduk-insight"
+git pull --ff-only origin main
+```
+
+**그다음부터는 실행할 때마다:**
+
+```powershell
+cd "C:\Windows\System32\baduk-insight"
+.\start_baduk.ps1
+```
+
+PowerShell 실행 정책이 스크립트 실행을 막으면 현재 실행에 한해서만 다음 명령어를 사용할 수 있습니다.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\start_baduk.ps1
+```
+
+이 스크립트는 `main` 브랜치와 올바른 GitHub 원격 저장소를 확인하고, **로컬에서 수정한 추적 파일이 있다면 중단**합니다. `git pull --ff-only`로 안전하게 최신 코드를 가져와 의존성을 설치한 뒤 앱을 실행합니다. 인터넷 연결이나 비공개 저장소 인증이 실패하면 동기화를 중단하며, `git reset --hard`는 실행하지 않습니다.
+
+**주의:** 실행 시 한 방향 코드 업데이트입니다. 개인 SGF·RAG 색인 데이터·KataGo 가중치 파일은 GitHub에 올리지 않으며, PC의 로컬 파일로 유지합니다. 실행 중 실시간 반영은 아닙니다. 이미 실행 중인 Streamlit은 `Ctrl + C`로 종료하고 재실행하세요.
+
 ## 0. 준비물
 
 - Windows 10/11
