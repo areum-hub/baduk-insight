@@ -1,102 +1,132 @@
 # Baduk Insight
 
-**A personal AI-powered Go (Baduk) game review and learning project.**
+**프로 바둑 기보로 공부하는 나만의 AI 바둑 복기 챗봇**  
+*A personal Go (Baduk) review & learning chatbot powered by KataGo and RAG.*
 
-바둑이라는 취미를 Python과 AI 공부로 연결하기 위해 시작한 개인 프로젝트입니다. 프로기사 기보를 한 수씩 따라가며 수의 의미를 배우고, 앞으로 KataGo 분석과 RAG 대화형 학습을 결합하려고 합니다.
+좋아하는 **바둑**을 AI 개발 공부와 연결하기 위해 시작한 개인 프로젝트입니다. 프로기사의 실전 기보를 한 수씩 따라가고, 궁금한 착수를 질문하면서 정석·행마·사활 같은 개념을 배워가는 학습 도구를 목표로 합니다.
 
-> **현재: Phase 3 — 로컬 RAG 학습 챗봇 코드 추가.** 코드와 모의 테스트를 등록했으며 실제 Ollama/ChromaDB/KataGo 연동과 전체 앱 실행은 로컬에서 검증이 필요합니다.
+> **개발 현황 (2026-11-14)**  
+> Phase 1~3의 **초기 소스 코드와 테스트가 GitHub에 등록**되었습니다. Windows PC에서의 SGF 다운로드, Ollama/KataGo 실실행과 전체 앱 통합 검증은 **아직 진행 중**입니다.  
+> 프로젝트는 **Private** 저장소로 운영합니다.
 
-## 개발 목표
+## 먼저 읽기
 
-- [x] SGF 업로드 및 메인 수순 복기용 초기 뷰어 코드
-- [ ] CWI 프로 기보 3판 다운로드 및 실제 기보 재생 검증
-- [x] KataGo 분석 요청 및 후보 수 표시 코드 작성 (실제 엔진 실행 검증 전)
-- [x] EmbeddingGemma 2 + ChromaDB 기반 바둑 개념 검색 코드 작성 (실제 로컬 모델 검증 전)
-- [x] 검색 근거를 표시하는 한국어 복기 챗봇 코드 작성 (실제 로컬 모델 검증 전)
-- [ ] 개인 학습 기록 및 반복 복습
+| 문서 | 내용 |
+| --- | --- |
+| **[Windows에서 실행하기](docs/SETUP_WINDOWS.md)** | 처음 설치부터 Streamlit 실행, Ollama 오류 해결까지 |
+| **[Phase 1~3 개발 기록](docs/DEVELOPMENT_LOG.md)** | 왜 만들었는지, 단계별로 무엇을 구현했는지, 남은 검증 |
+| **[기술 설계와 확장 계획](docs/ARCHITECTURE.md)** | SGF·KataGo·RAG 역할 분리, 한계, Phase 4 |
 
-## Quickstart (Windows PowerShell)
+## 이 프로젝트로 하고 싶은 것
 
-Python 3.10 이상 권장:
+1. **프로 바둑 복기:** CWI의 프로기사 SGF 기보를 바둑판에서 한 수씩 보기
+2. **AI 착수 분석:** KataGo로 선택한 국면의 형세와 추천 후보 수 확인
+3. **대화형 바둑 공부:** EmbeddingGemma로 관련 바둑 개념을 검색하고 Qwen에게 한국어 설명 듣기
+4. **나만의 학습 기록:** 궁금했던 수, 배운 내용, 반복 실수를 따로 저장하기 *(Phase 4 예정)*
 
-```powershell
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python scripts/download_cwi_samples.py
-streamlit run app.py
+## 서비스 흐름
+
+```text
+CWI 프로 기보 (SGF)
+   ↓  sgfmill
+19×19 기보 뷰어 ── 선택한 착수 ──→ KataGo (형세·후보 수 분석)
+   │                                  │
+   └──────── 질문/현재 장면 ──────────┤
+                                      ▼
+바둑 학습 노트 → EmbeddingGemma 2 → ChromaDB에서 관련 개념 검색
+                                      │
+                                      ▼
+                          Qwen3 한국어 RAG 해설
+                           + 참고 문서 출처 표시
 ```
 
-### Phase 3 — 로컬 AI 학습 챗봇 실행
+KataGo 분석은 **선택 사항**입니다. 설치하지 않아도 기보 뷰어와 바둑 개념 RAG는 사용할 수 있도록 설계했습니다. 단, 엔진 분석 없이 구체적인 승률이나 '프로기사의 실제 의도'를 단정하지 않습니다.
 
-1. [Ollama](https://ollama.com/download) 설치 후 Ollama 서버 실행
-2. 임베딩·답변 모델 설치 (Ollama 모델 태그는 설치된 버전에 맞게 확인)
+## 단계별 개발 현황
+
+| 단계 | 구현한 코드 | 아직 필요한 작업 |
+| --- | --- | --- |
+| **Phase 1 — 기보 뷰어** | SGF 파싱, 바둑판, 수순 탐색, CWI 다운로드 스크립트 | 실제 기보 다운로드와 화면 검증 |
+| **Phase 2 — KataGo** | 분석 요청, 후보 수 3개, 변화도와 흑 승률 표시 | 엔진·신경망 설치 및 실제 분석 검증 |
+| **Phase 3 — RAG 챗봇** | EmbeddingGemma 임베딩, ChromaDB 검색, Qwen 한국어 채팅, 기본 바둑 노트 10개 | Ollama 설치 및 실제 검색·답변 검증 |
+| **Phase 4 — 학습 기록** | 미구현 | 기보 북마크, 복습 기록, SQLite 설계 |
+
+## 기술 스택
+
+| 분야 | 도구 | 담당 역할 |
+| --- | --- | --- |
+| 웹 화면 | Python, Streamlit | 바둑판·분석 패널·챗봇 |
+| 기보 처리 | sgfmill, SVG | SGF 파싱과 수순 재생 |
+| 바둑 분석 | KataGo | 추천 수, 형세, 대안 변화도 |
+| 임베딩 | EmbeddingGemma 2 270M (Ollama) | 바둑 지식 벡터화 |
+| 벡터 검색 | ChromaDB | 질문과 관련된 개념 찾기 |
+| 답변 생성 | Qwen3 4B Instruct (Ollama) | 한국어 학습 설명 |
+| 테스트 | pytest | 주요 모듈 단위 테스트 |
+
+## 빠른 실행 (Windows PowerShell)
+
+**Ollama를 먼저 설치하지 않아도 SGF 뷰어부터 실행할 수 있습니다.**
 
 ```powershell
+Set-Location $HOME
+New-Item -ItemType Directory -Force -Path "$HOME\Projects" | Out-Null
+Set-Location "$HOME\Projects"
+git clone https://github.com/areum-hub/baduk-insight.git
+Set-Location .\baduk-insight
+py -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe scripts\download_cwi_samples.py
+.\.venv\Scripts\python.exe -m streamlit run app.py
+```
+
+브라우저에서 **http://localhost:8501** 을 열어 바둑판을 확인합니다. 코드와 다운로드 스크립트가 실제 PC에서 정상 실행되는지는 아직 검증이 필요합니다.
+
+**RAG 챗봇을 사용하려면** [Ollama](https://ollama.com/download/windows)를 설치하고 새 PowerShell에서:
+
+```powershell
+ollama --version
 ollama pull embeddinggemma-2:270m
 ollama pull qwen3:4b-instruct
+ollama list
 ```
 
-3. `streamlit run app.py` 실행 후 **SGF 기보를 선택**합니다.
-4. 왼쪽 **Build / refresh knowledge index** 버튼으로 `knowledge/*.md` 학습 노트 10개를 임베딩합니다.
-5. 수순을 선택하고 오른쪽의 **AI 바둑 학습 챗봇**에 질문하면 연관 문서 3개를 검색하여 출처와 함께 답변을 생성합니다.
-6. 같은 장면을 미리 KataGo로 분석했다면 실제 분석 수치도 답변에 전달합니다. 분석을 실행하지 않았다면 승률·추천 수를 임의로 주장하지 않도록 제한합니다.
+앱 왼쪽의 **Build / refresh knowledge index**를 눌러 학습 노트 10개를 색인하세요. 자세한 단계와 문제 해결은 [Windows 실행 가이드](docs/SETUP_WINDOWS.md)에 정리했습니다.
 
-이 단계는 **프로 기보 SGF → KataGo(선택사항) → EmbeddingGemma 임베딩 → ChromaDB 검색 → Qwen 한국어 답변** 구조입니다. 색인/대화는 로컬 Ollama에만 요청하고, ChromaDB 저장 파일은 `data/chroma/`에 남으며 Git에 포함하지 않습니다. **기보 전체를 벡터화하지 않습니다.**
+### 현재 발견한 설치 문제
 
-**주의:** 이번 구현의 학습 문서는 직접 작성한 기초 바둑 개념 10개입니다. 실제 기사 인터뷰나 특정 기보의 주석 자료가 아닙니다. 모델 답변은 틀릴 수 있고, 프로기사의 실제 의도를 알 수는 없습니다.
+Windows에서 `ollama pull ...` 실행 시 **'ollama' 명령어를 인식하지 못한다**는 오류가 확인되었습니다. Python 패키지 문제가 아니라 Ollama 설치 또는 PATH 설정을 확인해야 하는 상황입니다. 설치 완료·실제 모델 실행은 아직 확인되지 않았습니다. [해결 방법 보기](docs/SETUP_WINDOWS.md#4-ollama-설치--이전-오류-해결).
 
-```powershell
-pytest -q
-```
-
-테스트는 Ollama 모의 응답 및 가짜 벡터 컬렉션을 사용합니다. 현재 실제 KataGo·Ollama·Streamlit 통합 실행은 검증하지 않았습니다.
-
-KataGo가 설치되지 않아도 SGF 뷰어를 사용할 수 있습니다. AI 분석을 실행하려면 별도 로컬 KataGo 엔진과 신경망 모델 파일이 필요합니다. Windows에서 KataGo를 다운로드한 뒤 좌측 메뉴에 실행 파일 경로(예: `C:\\Tools\\KataGo\\katago.exe`), 신경망 모델 `.bin.gz` 경로, `configs/analysis_local.cfg` 경로를 지정하고 **Analyze position before this move** 버튼을 누르세요. 테스트를 위해서는 `pytest -q`를 실행할 수 있습니다.
-
-- [KataGo 공식 저장소](https://github.com/lightvector/KataGo)
-- [KataGo JSON 분석 프로토콜](https://github.com/lightvector/KataGo/blob/master/docs/Analysis_Engine.md)
-
-설정 파일은 흑 시점 승률(`reportAnalysisWinratesAs = BLACK`)을 사용합니다. SGF의 룰·덤은 분석 전 직접 확인하세요.
-
-다운로드가 불가능하면 [CWI 프로 기보 아카이브](https://homepages.cwi.nl/~aeb/go/games/games/)에서 SGF 파일을 직접 받아 `data/sgf/`에 넣거나, 앱에서 업로드할 수 있습니다.
-
-## Project structure
+## 폴더 구조
 
 ```text
 baduk-insight/
-├── app.py
-├── requirements.txt
+├── app.py                         # Streamlit 앱
+├── requirements.txt               # Python 의존성
 ├── src/
-│   ├── sgf_service.py
-│   ├── board_svg.py
-│   ├── katago_client.py
-│   ├── ollama_client.py
-│   └── rag_pipeline.py
+│   ├── sgf_service.py             # 기보 파싱 및 재생
+│   ├── board_svg.py               # 바둑판 SVG
+│   ├── katago_client.py           # KataGo 분석 요청/응답
+│   ├── ollama_client.py           # 임베딩과 채팅 요청
+│   └── rag_pipeline.py            # 문서 색인·검색·프롬프트
+├── knowledge/                     # 직접 작성한 기초 바둑 학습 노트 10개
 ├── scripts/download_cwi_samples.py
 ├── configs/analysis_local.cfg
-├── tests/test_board_svg.py
-├── tests/test_katago_client.py
-├── tests/test_rag_pipeline.py
-├── knowledge/*.md            # 직접 작성한 학습 노트 10개
-├── docs/ARCHITECTURE.md
-└── data/sgf/                # local SGFs (not committed)
+├── tests/                         # 단위 및 모의 연동 테스트
+├── docs/
+│   ├── SETUP_WINDOWS.md
+│   ├── DEVELOPMENT_LOG.md
+│   └── ARCHITECTURE.md
+└── data/                           # 로컬 기보/색인 (Git에서 제외)
 ```
 
-## 설계 원칙
+## 데이터와 주의사항
 
-- **SGF**는 수순과 보드 상태를 위한 구조화 데이터로 처리합니다.
-- **KataGo**가 실제 바둑 형세 및 후보 수를 평가합니다.
-- **EmbeddingGemma / RAG**는 정석·행마·사활 등 설명 자료를 검색합니다.
-- LLM은 분석과 검색된 근거를 바탕으로 설명하며 프로기사의 실제 의도를 단정하지 않습니다.
-- 초기에는 소수의 19×19 기보에서 선택한 장면만 분석하여 로컬 연산량을 줄입니다.
+- 기보 출처: [CWI Go Games Archive](https://homepages.cwi.nl/~aeb/go/games/games/) — 실제 대국의 SGF를 내려받아 개인 학습에 활용합니다.
+- `knowledge/`의 학습 노트는 이 프로젝트를 위해 작성한 기초 설명 자료입니다. 프로기사의 실제 인터뷰나 공식 기보 주석이 아닙니다.
+- 바둑판은 KataGo가 평가하고, RAG는 바둑 **개념을 검색**하며, LLM은 확인한 정보에 기반해 설명하는 역할입니다.
+- 모델 가중치, 다운로드한 기보, 개인 학습 데이터 및 로컬 벡터 DB는 저장소에 포함하지 않습니다.
+- 프로젝트 자체 코드에는 저장소의 MIT LICENSE를 적용합니다. 외부 SGF 및 제3자 해설의 이용 조건은 별도로 확인합니다.
 
-아키텍처 계획은 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)를 참고하세요.
+---
 
-## Data provenance
-
-기보 출처: [CWI Go Games Archive](https://homepages.cwi.nl/~aeb/go/games/). CWI 큐레이터는 기보 컬렉션이 퍼블릭 도메인이라고 안내합니다. 제3자가 작성한 주석과 추가 학습 자료에는 별도 권리가 있을 수 있습니다. 원본 SGF는 Git 저장소에 포함하지 않습니다.
-
-## License
-
-자체 작성 코드: MIT. 외부 기보와 해설은 각 출처의 조건을 따릅니다.
+**핵심 목표:** 바둑을 취미로 즐기면서 AI 모델 연동, RAG 설계, 데이터 처리, 개인용 서비스를 직접 구현하고 공부하는 것입니다.
