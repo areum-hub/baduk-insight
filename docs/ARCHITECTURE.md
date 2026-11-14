@@ -1,51 +1,111 @@
-# Baduk Insight — Architecture and roadmap
+# Baduk Insight — 시스템 구조와 데이터 흐름
 
-## Phase 1 — SGF viewer (prototype)
+[← README](../README.md) · [Windows 실행](SETUP_WINDOWS.md) · [개발 기록](DEVELOPMENT_LOG.md)
 
-- CWI professional Go games, small sample set (initial target: 3 games)
-- SGF mainline parsing and replay with `sgfmill`
-- 19×19 board rendering in Streamlit
-- Download script: `scripts/download_cwi_samples.py`
+**기준: 2026-11-14의 GitHub `main` 소스 코드.** 개인 로컬용 Streamlit 앱이며 GitHub 저장소는 **Private**입니다. 이 문서는 실제 화면에서 사용하는 경로와 보존된 실험 코드를 구분합니다.
 
-Status: code committed; real SGF download and application runtime test remain to be verified on a configured machine.
+## 1. 현재 사용자 흐름
 
-## Phase 2 — KataGo analysis integration (code added)
+```text
+ CWI 원본 HTTPS .sgf / 사용자 SGF 파일 / data/sgf/ 폴더
+                           │
+                           ▼
+                 sgfmill SGF 파싱
+                           │
+                           ▼
+            Streamlit UI ── SVG 바둑판
+                  │          └─ 2초 고정 자동 재생
+                  │
+                  ├───────── KataGo 선택형 분석
+                  │           ├─ 선택 N수의 직전 국면
+                  │           ├─ 흑 승률 / 예상 집 차이
+                  │           └─ 실제 착수(주황) / AI 추천(파랑)
+                  │
+                  └───────── 바둑 학습 채팅
+                              └─ 빠른 로컬 노트 검색
+                                  └─ knowledge/*.md (16개)
+```
 
-- KataGo JSON analysis client: `src/katago_client.py`
-- Local config: `configs/analysis_local.cfg` (black winrate perspective)
-- GUI: user selects move N, app analyzes position after move N-1
-- Display black win rate, black score lead, top 3 candidate moves, and principal variations
-- Full engine and neural network binaries are **not** included. Install separately.
-- Current implementation launches one subprocess per analysis request; performance can be improved later with a persistent analysis process and memoized results.
-- The current output does **not** estimate the actual professional move's win-rate loss. For that, evaluate the position after the played move under comparable search settings.
-- The displayed candidate list is a recommendation from the *preceding position*, not a direct explanation of a professional player's intentions.
-- KataGo supports Chinese/Japanese settings as configured. Check the original SGF rules and komi: rules mismatch can change results.
-- Tests in `tests/test_katago_client.py` use simulated engine output; live engine integration has not been verified here.
+**현재 챗봇에는 생성형 언어 모델 경로가 없습니다.** 단어 기반 관련 문서 선택 후 원문을 인용합니다. 이것은 노트 조회이지 현재 판의 정확한 AI 수읽기가 아닙니다.
 
-Official protocol: https://github.com/lightvector/KataGo/blob/master/docs/Analysis_Engine.md
+## 2. 주요 구성요소
 
-## Phase 3 — RAG study chatbot (source code added, live integration unverified)
+| 구성 | 파일 | 역할 |
+| --- | --- | --- |
+| UI | `app.py` | 기보 선택, 복기, 착수 분석, 학습 자료, 채팅 |
+| SGF 해석 | `src/sgf_service.py` | SGF 메인 수순 재생 및 게임 메타데이터 |
+| 바둑판 | `src/board_svg.py` | SVG 좌표·돌·실제 착수 및 AI 제안 원 |
+| 자동 복기 | `src/playback.py` | 2초 진행, 수동 이동, 범위 제한 |
+| CWI 원본 | `src/cwi_source.py` | 공식 CWI SGF URL 제한, 크기·파일 검사, HTTPS 시스템 인증서 |
+| 착수 분석 | `src/katago_client.py` | KataGo JSON 분석, 추천 수, 흑 승률·예상 차이 |
+| 로컬 설정 | `src/local_settings.py` | Windows 사용자 폴더 기준 경로 제안, PC 전용 설정 저장 |
+| 빠른 노트 | `src/fast_study.py` | 학습 노트의 개념 키워드 검색 및 원문 일부 제시 |
+| 학습 자료 | `knowledge/*.md` | 16개의 한국어 바둑 기초 노트 |
+| 보존된 RAG 실험 | `src/rag_pipeline.py`, `src/ollama_client.py` | ChromaDB 임베딩 검색, Ollama 기반 Qwen 응답 실험. 현재 챗봇에서는 미사용 |
+| Windows 실행 | `start_baduk.ps1` | GitHub main 동기화 → 의존성 설치 → Streamlit 실행 |
 
-- Local Ollama `/api/embed`: `embeddinggemma-2:270m`.
-- ChromaDB persistent index in `data/chroma/`, using only `knowledge/*.md` concept notes.
-- Local Ollama `/api/chat`: `qwen3:4b-instruct`, Korean conversational study assistant.
-- Retrieval: embed question, select up to three related concept documents, display file-path provenance.
-- Context: selected SGF turn and played move; **only** include KataGo data if the user actually ran analysis of the current exact turn with matching settings.
-- Answers distinguish general principles from actual move-by-move evaluation; do not guess win rates or professionals' intentions.
-- Session chat history is cleared when the SGF or move number changes; Phase 4 persistence is not yet implemented.
-- Models run locally; binaries and weights are not uploaded to Git.
-- `tests/test_rag_pipeline.py` tests prompts, index, embedding API contract and source labels using fakes. This is not a substitute for integration testing on the user's Windows PC.
-- Initial knowledge base contains 10 original elementary Baduk concept notes, which will need expansion and expert review.
+## 3. 기보 입력과 보안 경계
 
-## Phase 4 — Personal learning (planned)
+- **내 기보에서 선택:** `data/sgf/`에서 로컬 파일 로딩
+- **SGF 업로드:** 사용자 파일을 Streamlit이 받음
+- **CWI 직접 불러오기:** `https://homepages.cwi.nl/~aeb/go/games/games/` 아래의 `.sgf` URL만 허용
+- 원본 파일은 최대 2MB 읽기, SGF 파싱 및 바둑판 크기(9/13/19) 확인
+- URL 입력은 HTTPS·CWI 호스트로 제한. 다른 사이트로의 리다이렉트와 경로 탐색을 거부
+- Windows의 신뢰된 인증서 저장소를 `truststore`로 사용. **SSL 검증을 끄지 않음**
+- CWI 접속 실패 시 브라우저로 직접 SGF를 내려받아 파일 업로드 가능
 
-- Bookmarks, own questions, learning notes in SQLite
-- Personalized study sessions and repeated-theme review
+다운로드한 SGF 파일을 기본적으로 저장소에 체크인하지 않습니다.
 
-## Data provenance and privacy
+## 4. 자동 복기 및 분석
 
-Source: https://homepages.cwi.nl/~aeb/go/games/games/
+**복기:** SGF를 바둑판으로 표시한 뒤 **2초 간격**으로 한 수씩 진행합니다. 이전/다음 수, 일시정지, 슬라이더 이동을 지원합니다. 수동 조작 시 자동 재생이 중단됩니다. 앱은 SGF의 메인 수순을 표시하며 모든 변화를 해석하는 전문 SGF 편집기는 아닙니다.
 
-Do not commit downloaded datasets, personal study records, or large model weights to Git. Third-party annotations may have separate rights from raw game records.
+**KataGo 분석:** 수순 N을 선택하면 `build_query(record, N-1, rules, komi, visits)`로 N수를 두기 직전 국면을 전달합니다. KataGo 엔진 파일 및 네트워크 가중치는 **사용자 PC에 별도 설치**되어야 합니다. 설정은 다음과 같습니다.
 
-Repository visibility: Private.
+- 기본 경량 신경망: `kata1-b10c128-s1141046784-d204142634.txt.gz`를 Windows `Downloads`에서 찾도록 제안
+- 기본 실행 파일: `~/KataGo/katago.exe`
+- 기본 AI 탐색 횟수: **5**
+- 분석 설정 파일: `configs/analysis_local.cfg`
+- PC 전용 저장: `data/local/katago_settings.json`
+- 결과: 흑 승률, 예상 집 차이, 추천 착수/실제 착수 및 추가 후보·예상 수순
+
+**중요:** 엔진은 요청할 때마다 새 프로세스를 시작하며, 동일한 설정·국면에 대한 결과는 Streamlit 서버 메모리에 캐시됩니다. UI에서는 캐시 관련 안내 문구를 제거했습니다. 현재 분석만으로는 프로기사의 실제 착수의 승률 손실을 직접 계산하지 않습니다.
+
+규칙(`RU`)·덤(`KM`)은 SGF 메타데이터를 사용하지만, 값이 없거나 확인되지 않은 경우 기본값을 임시 기준으로 표시합니다. 규칙이 잘못 설정되면 승률·집 차이 수치에도 영향을 줄 수 있습니다.
+
+## 5. 학습 노트 빠른 답변
+
+현재 채팅은 `src/fast_study.py`의 `quick_answer(question, notes)`를 사용합니다.
+
+1. `knowledge/`의 Markdown 노트 **16개**를 읽습니다.
+2. 질문의 바둑 개념 용어와 문서 제목·파일 이름을 비교합니다.
+3. 관련성이 높은 노트의 일부 원문을 바로 표시합니다.
+4. 맞는 노트가 없다면 근거 문서가 부족하다고 안내하며 임의의 착수·승률을 만들어내지 않습니다.
+
+**검색 방법은 키워드 기반**이며 ChromaDB, embedding, Ollama, Qwen에 요청하지 않습니다. 따라서 반복 질문이 빠를 수 있지만, 동의어·복합 추론·현재 판의 생사·수읽기 같은 내용은 취약합니다. 아직 정밀도나 실제 PC 응답 시간 측정은 완료되지 않았습니다.
+
+**화면:** 답변 아래의 반복적인 '참고한 학습 노트' 펼침 박스는 제거했습니다. 대신 **03 · AI 학습 자료** 사이드바 카드에 주제 이름 6개를 간단히 보여주고, 전체 16개 제목을 펼쳐 확인할 수 있습니다. 현재 장면 변경 시 세션 채팅 이력은 새로 시작되며 영구 저장하지 않습니다.
+
+## 6. 보존된 선택형 임베딩/RAG 실험
+
+과거 실습 코드는 저장소에서 유지합니다.
+
+- `src/rag_pipeline.py`: `embeddinggemma-2:270m`을 통한 임베딩, `data/chroma/`의 ChromaDB 색인
+- `src/ollama_client.py`: Ollama 로컬 API, `qwen3:4b-instruct` 응답 생성
+- 사이드바의 **AI 검색 자료 동기화:** 별도 색인 갱신. **현재 빠른 답변에는 필수 아님**
+
+**16개 노트와 ChromaDB 색인에 등록된 개수는 별도입니다.** 현재의 학습 채팅은 파일에 있는 16개 노트를 기준으로 응답합니다. 임베딩 색인의 개수가 적더라도 빠른 답변 기능에는 영향이 없습니다.
+
+## 7. 제한 사항 및 향후 검토
+
+- Windows 브라우저의 카드 UI·복기·CWI 연결·KataGo 실분석과 응답 시간을 최신 코드로 종합 검증해야 합니다.
+- KataGo 추천 수와 실제 착수의 차이를 '실수'로 판정하는 승률 손실 계산은 구현하지 않았습니다.
+- 학습 채팅은 일반 개념 노트 조회이며 개인별 설명·새로운 추론을 생성하지 않습니다.
+- 개인 북마크, 착수별 메모, 복습 이력 등의 지속 저장 기능은 아직 구현하지 않았습니다.
+- 테스트의 상당 부분은 가짜 엔진·모델 응답을 사용하므로 실제 PC 실행 검증을 대신하지 않습니다.
+
+## 8. 개인정보와 원본 자료
+
+원본 기보 다운로드, KataGo 신경망 가중치 및 실행 파일, PC별 로컬 설정, `data/chroma/` 색인, 개인 데이터는 GitHub에 업로드하지 않습니다. `.gitignore`에서 로컬 산출물을 제외합니다. 원본 기보와 제3자 해설의 저작권·라이선스는 별도 확인이 필요합니다.
+
+CWI 출처: https://homepages.cwi.nl/~aeb/go/games/games/
