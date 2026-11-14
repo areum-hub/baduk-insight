@@ -16,6 +16,7 @@ from src.sgf_service import load_sgf, replay
 from src.playback import advance, move_manually
 from src.ollama_client import OllamaError, chat_stream
 from src.rag_pipeline import build_index, build_messages, get_collection, load_notes, retrieve
+from src.fast_study import quick_answer
 
 PROJECT = Path(__file__).resolve().parent
 DATA_DIR = PROJECT / "data" / "sgf"
@@ -419,9 +420,7 @@ with right:
     if st.session_state.playing:
         st.caption("일시정지하면 현재 장면을 분석할 수 있습니다.")
     st.caption("현재 수를 두기 **직전**에 AI가 추천한 위치를 분석합니다.")
-    if turn == 0:
-        st.info("첫 수(착점 이전)를 분석하려면 수순을 1로 이동하세요.")
-    else:
+    if turn > 0:
         lookup = (digest, turn, rules, float(komi), visits, binary, model, config)
         if st.button("이 장면 AI 분석하기", type="primary", disabled=st.session_state.playing):
             try:
@@ -485,6 +484,17 @@ with right:
         if turn else "대국 시작 전"
     )
     st.caption(f"현재 복기 장면: {current_move_label}")
+    answer_mode = st.radio(
+        "답변 방식",
+        ["빠른 답변", "AI 자세히 설명"],
+        key="study_answer_mode",
+        horizontal=True,
+        help="빠른 답변은 PC의 학습 노트에서 문장을 즉시 보여줍니다. AI 자세히 설명은 로컬 Ollama를 사용하므로 시간이 걸릴 수 있습니다.",
+    )
+    if answer_mode == "빠른 답변":
+        st.caption("학습 노트에서 관련 내용을 바로 보여줍니다. 실전 수읽기나 승률 판단은 하지 않습니다.")
+    else:
+        st.caption("로컬 AI가 학습 노트를 검색해 설명합니다. PC 성능에 따라 기다릴 수 있습니다.")
     scene_id = (digest, turn)
     if st.session_state.get("rag_scene") != scene_id:
         st.session_state.rag_scene = scene_id
@@ -521,35 +531,46 @@ with right:
             st.markdown(question)
         with st.chat_message("assistant"):
             try:
-                hits = retrieve(question, top_k=2)
-                if not hits:
-                    reply = "검색 색인이 비어 있습니다. 왼쪽에서 'Build / refresh knowledge index'를 먼저 실행해 주세요."
+                if answer_mode == "빠른 답변":
+                    reply, sources = quick_answer(question, load_notes())
                     st.markdown(reply)
-                    st.session_state.rag_messages.append({"role": "assistant", "content": reply})
-                else:
-                    current_analysis = (
-                        st.session_state.get("analysis_result")
-                        if turn > 0 and st.session_state.get("analysis_key") ==
-                        (digest, turn, rules, float(komi), visits, binary, model, config)
-                        else None
-                    )
-                    last_move = gtp_coord(record.moves[turn-1][1], record.size) if turn else "none"
-                    scene = {
-                        "game": f"{record.black_player} vs {record.white_player}",
-                        "turn": turn,
-                        "played_move": last_move,
-                        "analysis": current_analysis,
-                    }
-                    prompt = build_messages(question, hits, scene, history)
-                    with st.status("관련 학습 자료를 찾았습니다. 답변을 작성하는 중...", expanded=False):
-                        reply = st.write_stream(chat_stream(prompt))
-                    with st.expander("검색 근거 문서", expanded=True):
-                        for source in hits:
-                            st.caption(f"{source['title']} · knowledge/{source['path']}")
+                    if sources:
+                        with st.expander("참고한 학습 노트"):
+                            for source in sources:
+                                st.caption(f"{source['title']} · knowledge/{source['path']}")
                     st.session_state.rag_messages.append({
-                        "role": "assistant", "content": reply,
-                        "sources": [{"title": x["title"], "path": x["path"]} for x in hits],
+                        "role": "assistant", "content": reply, "sources": sources,
                     })
+                else:
+                    hits = retrieve(question, top_k=2)
+                    if not hits:
+                        reply = "검색 자료가 비어 있습니다. 왼쪽의 'AI 학습 자료 → 학습 자료 관리'에서 검색 자료를 동기화해 주세요."
+                        st.markdown(reply)
+                        st.session_state.rag_messages.append({"role": "assistant", "content": reply})
+                    else:
+                        current_analysis = (
+                            st.session_state.get("analysis_result")
+                            if turn > 0 and st.session_state.get("analysis_key") ==
+                            (digest, turn, rules, float(komi), visits, binary, model, config)
+                            else None
+                        )
+                        last_move = gtp_coord(record.moves[turn-1][1], record.size) if turn else "none"
+                        scene = {
+                            "game": f"{record.black_player} vs {record.white_player}",
+                            "turn": turn,
+                            "played_move": last_move,
+                            "analysis": current_analysis,
+                        }
+                        prompt = build_messages(question, hits, scene, history)
+                        with st.status("관련 학습 자료를 찾았습니다. 답변을 작성하는 중...", expanded=False):
+                            reply = st.write_stream(chat_stream(prompt))
+                        with st.expander("검색 근거 문서", expanded=True):
+                            for source in hits:
+                                st.caption(f"{source['title']} · knowledge/{source['path']}")
+                        st.session_state.rag_messages.append({
+                            "role": "assistant", "content": reply,
+                            "sources": [{"title": x["title"], "path": x["path"]} for x in hits],
+                        })
             except (OllamaError, RuntimeError, ValueError, OSError) as exc:
                 message = f"RAG 답변을 생성하지 못했습니다: {exc}"
                 st.error(message)
