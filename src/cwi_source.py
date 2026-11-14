@@ -3,10 +3,13 @@
 Only HTTPS SGF links inside the CWI games archive are accepted. The original
 file is held in Streamlit session state, not committed to GitHub.
 """
+import ssl
 from pathlib import PurePosixPath
 from urllib.error import HTTPError, URLError
 from urllib.parse import unquote, urlsplit
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import HTTPRedirectHandler, HTTPSHandler, Request, build_opener
+
+import truststore
 
 from sgfmill import sgf
 
@@ -56,13 +59,19 @@ class _RejectRedirect(HTTPRedirectHandler):
 def fetch_cwi_sgf(url: str) -> tuple[bytes, str]:
     """Fetch at most 2 MB, validate SGF, and return (bytes, filename)."""
     checked = validate_cwi_url(url)
-    opener = build_opener(_RejectRedirect())
+    opener = build_opener(_RejectRedirect(), HTTPSHandler(context=truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)))
     request = Request(checked, headers={"User-Agent": "BadukInsight/0.1 (SGF study)"})
     try:
         with opener.open(request, timeout=15) as response:
             raw = response.read(MAX_SGF_BYTES + 1)
     except (HTTPError, URLError, TimeoutError, OSError) as exc:
-        raise ValueError(f"CWI 기보를 불러오지 못했습니다: {exc}") from exc
+        message = str(exc)
+        if "CERTIFICATE_VERIFY_FAILED" in message:
+            raise ValueError(
+                "Windows의 신뢰 인증서로도 CWI HTTPS 인증에 실패했습니다. "
+                "브라우저에서 CWI 원본 SGF를 내려받아 '내 컴퓨터 파일 업로드'를 사용해 주세요."
+            ) from exc
+        raise ValueError(f"CWI 연결 실패: {exc}. 원본 링크에서 직접 SGF를 받아 업로드할 수 있습니다.") from exc
 
     if len(raw) > MAX_SGF_BYTES or not raw.lstrip().startswith(b"(;"):
         raise ValueError("받은 파일이 SGF가 아니거나 크기 제한(2MB)을 초과했습니다.")
