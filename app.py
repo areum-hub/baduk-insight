@@ -18,6 +18,7 @@ from scripts.download_cwi_samples import download_samples
 PROJECT = Path(__file__).resolve().parent
 DATA_DIR = PROJECT / "data" / "sgf"
 DEFAULT_CONFIG = PROJECT / "configs" / "analysis_local.cfg"
+PLAYBACK_SECONDS = 2  # Fixed playback interval for personal study
 
 st.set_page_config(page_title="Baduk Insight", page_icon="⚫", layout="wide")
 st.title("Baduk Insight")
@@ -129,7 +130,6 @@ if st.session_state.get("game_digest") != digest:
     st.session_state.rag_messages = []
     st.session_state.rag_scene = None
     st.session_state.playing = False
-    st.session_state.playback_speed = 2
     st.session_state.last_advance = time.monotonic()
 
 st.subheader(f"{record.black_player} (Black) vs {record.white_player} (White)")
@@ -147,7 +147,7 @@ def show_replay():
         new_index, new_anchor, still_playing = advance(
             current, record.move_count,
             st.session_state.last_advance,
-            time.monotonic(), st.session_state.playback_speed,
+            time.monotonic(), PLAYBACK_SECONDS,
         )
         if new_index != current:
             st.session_state.move_index = new_index
@@ -156,7 +156,7 @@ def show_replay():
             st.session_state.playing = False
             st.rerun()
     current = st.session_state.move_index
-    controls = st.columns([1, 1, 1, 1])
+    controls = st.columns(3)
     with controls[0]:
         if st.button("⏮ 이전", disabled=current == 0, key="replay_previous"):
             st.session_state.playing = False
@@ -176,13 +176,6 @@ def show_replay():
             st.session_state.move_index = move_manually(current, record.move_count, 1)
             st.session_state.last_advance = time.monotonic()
             st.rerun()
-    with controls[3]:
-        speed = st.selectbox(
-            "재생 간격", [1, 2, 3], format_func=lambda v: f"{v}초",
-            key="playback_speed", help="한 수를 표시한 다음 다음 수까지 기다리는 시간",
-        )
-        if speed not in (1, 2, 3):
-            st.session_state.playback_speed = 2
     # Use a temporary slider key to keep widget state synchronized with timer changes.
     def on_seek():
         st.session_state.playing = False
@@ -197,7 +190,7 @@ def show_replay():
     current = st.session_state.move_index
     st.caption(
         f"복기: {current} / {record.move_count}수 · "
-        + (f"자동 재생 중 ({st.session_state.playback_speed}초/수)" if st.session_state.playing else "일시정지")
+        + (f"자동 재생 중 ({PLAYBACK_SECONDS}초/수)" if st.session_state.playing else "일시정지")
     )
     try:
         board, last = replay(record, current)
