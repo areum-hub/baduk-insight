@@ -297,23 +297,6 @@ with st.sidebar:
             source_count = len(source_notes)
             index_count = get_collection().count()
             st.metric("보유한 바둑 학습 노트", f"{source_count}개")
-            st.markdown("**공부할 수 있는 주제**")
-            study_titles = [
-                next(
-                    (line.lstrip("# ").strip() for line in note["text"].splitlines()
-                     if line.startswith("# ")),
-                    note["title"],
-                )
-                for note in source_notes
-            ]
-            if study_titles:
-                st.caption(" · ".join(study_titles[:6]))
-                if len(study_titles) > 6:
-                    with st.expander(f"전체 학습 주제 {len(study_titles)}개 보기", expanded=False):
-                        for topic_index, title in enumerate(study_titles, start=1):
-                            st.caption(f"{topic_index:02d}  {title}")
-            else:
-                st.caption("학습 자료가 없습니다.")
             st.caption(f"AI 검색에 등록된 문서: {index_count}개")
             if index_count != source_count:
                 st.info("학습 노트와 검색 데이터의 개수가 다릅니다. 아래에서 동기화해 주세요.")
@@ -512,8 +495,6 @@ with right:
     if not st.session_state.rag_messages:
         st.markdown("**어떤 점이 궁금하세요?**")
         st.caption("아래 질문을 선택하거나 직접 입력해 보세요.")
-        if st.button("이 수에서 중요한 바둑 개념은?", key="study_starter_1", use_container_width=True):
-            starter_question = "현재 국면을 공부할 때 알아두면 좋은 바둑 개념을 설명해줘."
         if st.button("돌의 연결은 왜 중요할까?", key="study_starter_2", use_container_width=True):
             starter_question = "돌의 연결이 중요한 이유를 초보자도 이해하기 쉽게 설명해줘."
         if st.button("축과 장문은 어떻게 다를까?", key="study_starter_3", use_container_width=True):
