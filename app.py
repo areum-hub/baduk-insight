@@ -140,6 +140,8 @@ left, right = st.columns([1.45, 1])
 
 @st.fragment(run_every="0.25s")
 def show_replay():
+    if st.session_state.pop("replay_full_refresh", False):
+        st.rerun()
     with left:
         current = st.session_state.move_index
         if st.session_state.playing:
@@ -187,7 +189,7 @@ def show_replay():
             st.session_state.playing = False
             st.session_state.move_index = st.session_state.replay_seek
             st.session_state.last_advance = time.monotonic()
-            st.rerun()
+            st.session_state.replay_full_refresh = True
         st.session_state.replay_seek = st.session_state.move_index
         st.slider(
             "Move", 0, record.move_count, key="replay_seek", on_change=on_seek,
