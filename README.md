@@ -4,13 +4,13 @@
 
 바둑이라는 취미를 Python과 AI 공부로 연결하기 위해 시작한 개인 프로젝트입니다. 프로기사 기보를 한 수씩 따라가며 수의 의미를 배우고, 앞으로 KataGo 분석과 RAG 대화형 학습을 결합하려고 합니다.
 
-> **현재: Phase 1 — SGF 기보 뷰어 초기 구현.** KataGo 분석, EmbeddingGemma 기반 RAG, LLM 챗봇은 개발 예정입니다.
+> **현재: Phase 2 — KataGo 분석 기능 코드 추가.** 로컬 환경에서 KataGo 실행 파일·신경망 모델 설치와 실제 실행 검증이 필요합니다. EmbeddingGemma 기반 RAG와 LLM 챗봇은 개발 예정입니다.
 
 ## 개발 목표
 
 - [x] SGF 업로드 및 메인 수순 복기용 초기 뷰어 코드
 - [ ] CWI 프로 기보 3판 다운로드 및 실제 기보 재생 검증
-- [ ] KataGo 후보 수·형세 분석
+- [x] KataGo 분석 요청 및 후보 수 표시 코드 작성 (실제 엔진 실행 검증 전)
 - [ ] EmbeddingGemma 2 + ChromaDB 기반 바둑 개념 검색
 - [ ] 근거를 표시하는 한국어 복기 챗봇
 - [ ] 개인 학습 기록 및 반복 복습
@@ -27,6 +27,13 @@ python scripts/download_cwi_samples.py
 streamlit run app.py
 ```
 
+KataGo가 설치되지 않아도 SGF 뷰어를 사용할 수 있습니다. AI 분석을 실행하려면 별도 로컬 KataGo 엔진과 신경망 모델 파일이 필요합니다. Windows에서 KataGo를 다운로드한 뒤 좌측 메뉴에 실행 파일 경로(예: `C:\\Tools\\KataGo\\katago.exe`), 신경망 모델 `.bin.gz` 경로, `configs/analysis_local.cfg` 경로를 지정하고 **Analyze position before this move** 버튼을 누르세요. 테스트를 위해서는 `pytest -q`를 실행할 수 있습니다.
+
+- [KataGo 공식 저장소](https://github.com/lightvector/KataGo)
+- [KataGo JSON 분석 프로토콜](https://github.com/lightvector/KataGo/blob/master/docs/Analysis_Engine.md)
+
+설정 파일은 흑 시점 승률(`reportAnalysisWinratesAs = BLACK`)을 사용합니다. SGF의 룰·덤은 분석 전 직접 확인하세요.
+
 다운로드가 불가능하면 [CWI 프로 기보 아카이브](https://homepages.cwi.nl/~aeb/go/games/games/)에서 SGF 파일을 직접 받아 `data/sgf/`에 넣거나, 앱에서 업로드할 수 있습니다.
 
 ## Project structure
@@ -37,9 +44,12 @@ baduk-insight/
 ├── requirements.txt
 ├── src/
 │   ├── sgf_service.py
-│   └── board_svg.py
+│   ├── board_svg.py
+│   └── katago_client.py
 ├── scripts/download_cwi_samples.py
+├── configs/analysis_local.cfg
 ├── tests/test_board_svg.py
+├── tests/test_katago_client.py
 ├── docs/ARCHITECTURE.md
 └── data/sgf/                # local SGFs (not committed)
 ```
