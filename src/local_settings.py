@@ -52,7 +52,7 @@ def suggested_paths(project: Path) -> dict:
     """Suggest existing local files on a first run without hardcoding user paths."""
     home = Path.home()
     binary = home / "KataGo" / "katago.exe"
-    candidates = list((home / "Downloads").glob("*.bin.gz"))
+    candidates = sorted(list((home / "Downloads").glob("*.bin.gz")) + list((home / "Downloads").glob("*.txt.gz")))
     return {
         "binary": str(binary) if binary.is_file() else "katago",
         "model": str(candidates[0]) if len(candidates) == 1 else "",
