@@ -19,7 +19,7 @@
 
 ## 이 프로젝트로 하고 싶은 것
 
-1. **프로 바둑 복기:** CWI의 프로기사 SGF 기보를 바둑판에서 한 수씩 보기
+1. **프로 바둑 복기:** CWI의 프로기사 SGF 기보를 앱 내 다운로드 버튼이나 SGF 업로드로 불러와 바둑판에서 한 수씩 보기
 2. **AI 착수 분석:** KataGo로 선택한 국면의 형세와 추천 후보 수 확인
 3. **대화형 바둑 공부:** EmbeddingGemma로 관련 바둑 개념을 검색하고 Qwen에게 한국어 설명 듣기
 4. **나만의 학습 기록:** 궁금했던 수, 배운 내용, 반복 실수를 따로 저장하기 *(Phase 4 예정)*
@@ -79,7 +79,7 @@ py -m venv .venv
 .\.venv\Scripts\python.exe -m streamlit run app.py
 ```
 
-브라우저에서 **http://localhost:8501** 을 열어 바둑판을 확인합니다. 코드와 다운로드 스크립트가 실제 PC에서 정상 실행되는지는 아직 검증이 필요합니다.
+브라우저에서 **http://localhost:8501** 을 열어 왼쪽 **Download CWI games**를 클릭하세요. 다운로드 성공 시 바둑판을 볼 수 있습니다. 다운로드 오류가 뜨면 **Upload SGF**에서 직접 받은 기보 파일을 선택하세요. 코드와 다운로드 스크립트가 실제 PC에서 정상 실행되는지는 아직 검증이 필요합니다.
 
 **RAG 챗봇을 사용하려면** [Ollama](https://ollama.com/download/windows)를 설치하고 새 PowerShell에서:
 
