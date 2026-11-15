@@ -18,8 +18,11 @@ def test_board_is_drawn_before_controls_and_seek_slider():
     start = APP_SOURCE.index("def show_replay():")
     end = APP_SOURCE.index("\nwith left:", start)
     replay_code = APP_SOURCE[start:end]
-    assert replay_code.index("st.html(render_board(") < replay_code.index("controls = st.columns(3)")
+    assert replay_code.index("st.image(") < replay_code.index("controls = st.columns(3)")
     assert replay_code.index("controls = st.columns(3)") < replay_code.index("st.slider(")
+    assert "render_board(board, last_move=last, ai_suggestion=ai_point)" in replay_code
+    assert "use_container_width=True" in replay_code
+    assert "st.html(render_board(" not in replay_code
     assert "components.html(" not in replay_code
 
 
