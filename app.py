@@ -10,8 +10,7 @@ from sgfmill import sgf
 
 from src.cwi_source import ARCHIVE_URL, fetch_cwi_sgf
 from src.go_seigen_source import (
-    GO_SEIGEN_ARCHIVE_URL, import_go_seigen, import_go_seigen_archive,
-    local_go_seigen_games,
+    import_go_seigen, import_go_seigen_archive, local_go_seigen_games,
 )
 from src.board_svg import render_board
 from src.katago_client import KataGoError, build_query, gtp_coord, run_analysis, top_candidates
@@ -25,7 +24,6 @@ from src.study_guide import grouped_study_notes, note_title, note_answer
 
 PROJECT = Path(__file__).resolve().parent
 DATA_DIR = PROJECT / "data" / "sgf"
-DEFAULT_CONFIG = PROJECT / "configs" / "analysis_local.cfg"
 PLAYBACK_SECONDS = 2  # Fixed playback interval for personal study
 LOCAL_KATAGO_SETTINGS = PROJECT / "data" / "local" / "katago_settings.json"
 
