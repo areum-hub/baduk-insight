@@ -26,7 +26,7 @@ def render_board(board, last_move=None, ai_suggestion=None) -> str:
     total = 2 * pad + (size - 1) * square
     lines = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {total} {total}" '
-        'style="display:block;width:100%;height:auto;max-width:620px" role="img" aria-label="Go board">',
+        'style="display:block;width:100%;height:auto;max-width:720px;margin:0 auto" role="img" aria-label="Go board">',
         f'<rect width="{total}" height="{total}" rx="10" fill="#e2bc80"/>'
     ]
     end = pad + (size - 1) * square
