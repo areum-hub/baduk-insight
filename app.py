@@ -43,11 +43,20 @@ st.markdown(
     :root {
         --bi-font: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", "Segoe UI", sans-serif;
     }
-    html, body, .stApp,
-    .stApp :is(h1, h2, h3, h4, h5, h6, p, span, label, small, button, input, textarea, select),
-    section[data-testid="stSidebar"],
-    section[data-testid="stSidebar"] :is(h1, h2, h3, h4, h5, h6, p, span, label, small, button, input, textarea, select) {
+    /* Typography should never override Streamlit's Material Symbols icons.
+       Streamlit stores icon ligatures (e.g. arrow_right) inside span elements;
+       applying Noto Sans KR to every span turns them into visible words. */
+    html, body, .stApp {
+        font-family: var(--bi-font);
+    }
+    .stApp :is(h1, h2, h3, h4, h5, h6, p, label, small, button, input, textarea, select) {
         font-family: var(--bi-font) !important;
+    }
+    /* Preserve the icon font explicitly across Streamlit versions. */
+    .stApp :is(.material-symbols-rounded, .material-symbols-outlined, .material-icons, [data-testid="stIconMaterial"]) {
+        font-family: "Material Symbols Rounded" !important;
+        font-feature-settings: "liga";
+        -webkit-font-feature-settings: "liga";
     }
     .bi-brand-header {
         display: flex;
