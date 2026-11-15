@@ -1,7 +1,7 @@
 """Download Lee Sedol vs AlphaGo game records from the CWI archive.
 
 The files remain on the user's own computer and are not committed to Git.
-The same helper is also used by the Streamlit 'Download CWI games' button.
+This standalone helper is optional; the current Streamlit UI opens original\nCWI SGF URLs directly using src.cwi_source.
 """
 from pathlib import Path
 from urllib.error import HTTPError, URLError
