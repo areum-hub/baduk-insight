@@ -38,6 +38,12 @@ def format_sgf_date(value: str | None) -> str:
         return f"{year}년 {int(month)}월"
     if not 1 <= int(day) <= 31:
         return raw
+    # Reject impossible calendar dates rather than presenting them as fact.
+    from datetime import date as calendar_date
+    try:
+        calendar_date(int(year), int(month), int(day))
+    except ValueError:
+        return raw
     return f"{year}년 {int(month)}월 {int(day)}일"
 
 
