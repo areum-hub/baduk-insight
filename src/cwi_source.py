@@ -14,13 +14,11 @@ import truststore
 from sgfmill import sgf
 
 ARCHIVE_URL = "https://homepages.cwi.nl/~aeb/go/games/games/"
-ALPHAGO_URL = ARCHIVE_URL + "AlphaGo/index.html"
 CWI_ROOT = "/~aeb/go/games/games/"
 MAX_SGF_BYTES = 2_000_000
 
-# A few directly linked originals. For any other game, paste its SGF URL.
-# No bundled game selections: Go Seigen collection is fetched from CWI on demand.
-CWI_CHOICES = {}
+# The Go Seigen collection is downloaded separately by go_seigen_source.py.
+# This module supports manually opening an HTTPS SGF file by its original URL.
 
 
 def validate_cwi_url(url: str) -> str:
