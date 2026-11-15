@@ -564,20 +564,22 @@ match_details = format_game_details(
 )
 if match_details:
     st.caption(match_details)
-left, right = st.columns([62, 38], gap="large")
-
+# One fragment owns both panes. Paused manual navigation redraws only this
+# workspace instead of reloading ~900 SGF filenames and the study sidebar.
+# Live playback uses a periodic fragment; switching play/pause requires a
+# one-time app refresh to enable or disable the periodic timer.
 @st.fragment(run_every="0.5s" if st.session_state.playing else None)
 def show_replay():
     if st.session_state.pop("replay_full_refresh", False):
-        # Refresh the entire page, not only the playback fragment. The KataGo
-        # button lives in the right column outside this fragment and would
-        # otherwise stay disabled after clicking Pause.
         st.rerun(scope="app")
 
+    # Start the first two-second interval AFTER the full-page initialization.
+    # Otherwise slow SGF/sidebar rendering consumes the first interval and
+    # makes the initial visible move appear too early.
+    if st.session_state.pop("replay_start_pending", False):
+        st.session_state.last_advance = time.monotonic()
+
     def on_toggle_playback():
-        # A widget callback runs before the next fragment evaluation.
-        # Reset the 2-second clock and request a full rerun so the AI panel
-        # immediately sees the new playing state and current move index.
         playing, anchor = toggle_playback(
             st.session_state.playing,
             st.session_state.move_index,
@@ -586,6 +588,7 @@ def show_replay():
         )
         st.session_state.playing = playing
         st.session_state.last_advance = anchor
+        st.session_state.replay_start_pending = playing
         st.session_state.replay_full_refresh = True
 
     current = st.session_state.move_index
@@ -601,6 +604,7 @@ def show_replay():
         if not still_playing:
             st.session_state.playing = False
             st.rerun(scope="app")
+
     current = st.session_state.move_index
     try:
         board, last = replay(record, current)
@@ -609,137 +613,145 @@ def show_replay():
         st.error(f"Could not replay move: {exc}")
         return
 
-    current_key = (digest, current, rules, float(komi), visits, binary, model, config)
-    ai_point = None
-    if (
-        current > 0
-        and st.session_state.get("analysis_key") == current_key
-        and st.session_state.get("analysis_result")
-    ):
-        candidates = top_candidates(st.session_state["analysis_result"])
-        ai_point = candidates[0].get("move") if candidates else None
+    left, right = st.columns([62, 38], gap="large")
+    with left:
+        with st.container(key="replay_workspace"):
+            current_key = (digest, current, rules, float(komi), visits, binary, model, config)
+            ai_point = None
+            if (
+                current > 0
+                and st.session_state.get("analysis_key") == current_key
+                and st.session_state.get("analysis_result")
+            ):
+                candidates = top_candidates(st.session_state["analysis_result"])
+                ai_point = candidates[0].get("move") if candidates else None
 
-    # Streamlit st.html() sanitizes away raw SVG in some versions, causing an
-    # invisible board. st.image() supports SVG strings officially (including
-    # Streamlit 1.40) and scales to the available review column width.
-    # No iframe or fixed height: the playback controls follow the board.
-    st.image(
-        render_board(board, last_move=last, ai_suggestion=ai_point),
-        use_container_width=True,
-    )
-    if ai_point:
-        st.caption("🟠 주황 테두리: 실제 착수   ·   🔵 파란 테두리: AI 추천 위치")
+            # Streamlit st.html() sanitizes away raw SVG in some versions, causing an
+            # invisible board. st.image() supports SVG strings officially (including
+            # Streamlit 1.40) and scales to the available review column width.
+            # No iframe or fixed height: the playback controls follow the board.
+            st.image(
+                render_board(board, last_move=last, ai_suggestion=ai_point),
+                use_container_width=True,
+            )
+            if ai_point:
+                st.caption("🟠 주황 테두리: 실제 착수   ·   🔵 파란 테두리: AI 추천 위치")
 
-    controls = st.columns(3)
-    with controls[0]:
-        if st.button("⏮ 이전", disabled=current == 0, key="replay_previous", use_container_width=True):
-            st.session_state.playing = False
-            st.session_state.move_index = move_manually(current, record.move_count, -1)
-            st.session_state.last_advance = time.monotonic()
-            st.rerun(scope="app")
-    with controls[1]:
-        st.button(
-            "▶ 재생" if not st.session_state.playing else "⏸ 일시정지",
-            disabled=(not st.session_state.playing and current >= record.move_count),
-            key="replay_toggle",
-            on_click=on_toggle_playback,
-            use_container_width=True,
-        )
-    with controls[2]:
-        if st.button("⏭ 다음", disabled=current >= record.move_count, key="replay_next", use_container_width=True):
-            st.session_state.playing = False
-            st.session_state.move_index = move_manually(current, record.move_count, 1)
-            st.session_state.last_advance = time.monotonic()
-            st.rerun(scope="app")
+            controls = st.columns(3)
+            with controls[0]:
+                if st.button("⏮ 이전", disabled=current == 0, key="replay_previous", use_container_width=True):
+                    was_playing = st.session_state.playing
+                    st.session_state.playing = False
+                    st.session_state.move_index = move_manually(current, record.move_count, -1)
+                    st.session_state.last_advance = time.monotonic()
+                    # Rebuild the app only if the live fragment timer must stop.
+                    st.rerun(scope="app" if was_playing else "fragment")
+            with controls[1]:
+                st.button(
+                    "▶ 재생" if not st.session_state.playing else "⏸ 일시정지",
+                    disabled=(not st.session_state.playing and current >= record.move_count),
+                    key="replay_toggle",
+                    on_click=on_toggle_playback,
+                    use_container_width=True,
+                )
+            with controls[2]:
+                if st.button("⏭ 다음", disabled=current >= record.move_count, key="replay_next", use_container_width=True):
+                    was_playing = st.session_state.playing
+                    st.session_state.playing = False
+                    st.session_state.move_index = move_manually(current, record.move_count, 1)
+                    st.session_state.last_advance = time.monotonic()
+                    st.rerun(scope="app" if was_playing else "fragment")
 
-    # A key per position avoids rewriting an already rendered slider widget.
-    seek_key = seek_widget_key(digest, current)
+            # A key per position avoids rewriting an already rendered slider widget.
+            seek_key = seek_widget_key(digest, current)
 
-    def on_seek():
-        st.session_state.playing = False
-        st.session_state.move_index = int(st.session_state[seek_key])
-        st.session_state.last_advance = time.monotonic()
-        st.session_state.replay_full_refresh = True
+            def on_seek():
+                was_playing = st.session_state.playing
+                st.session_state.playing = False
+                st.session_state.move_index = int(st.session_state[seek_key])
+                st.session_state.last_advance = time.monotonic()
+                # A paused seek needs only this fragment; a live seek must also stop
+                # the periodic timer, so it requests one full app refresh.
+                st.session_state.replay_full_refresh = was_playing
 
-    st.slider(
-        "Move", min_value=0, max_value=record.move_count,
-        value=current, key=seek_key, on_change=on_seek,
-        help="슬라이더를 움직이면 자동 재생이 멈추고 선택한 수로 이동합니다.",
-    )
-    st.caption(
-        f"복기: {current} / {record.move_count}수 · "
-        + (f"자동 재생 중 ({PLAYBACK_SECONDS}초/수)" if st.session_state.playing else "일시정지")
-    )
+            st.slider(
+                "Move", min_value=0, max_value=record.move_count,
+                value=current, key=seek_key, on_change=on_seek,
+                help="슬라이더를 움직이면 자동 재생이 멈추고 선택한 수로 이동합니다.",
+            )
+            st.caption(
+                f"복기: {current} / {record.move_count}수 · "
+                + (f"자동 재생 중 ({PLAYBACK_SECONDS}초/수)" if st.session_state.playing else "일시정지")
+            )
 
-with left:
-    with st.container(key="replay_workspace"):
-        show_replay()
-with right:
-    turn = st.session_state.move_index
-    st.markdown('<h2 class="bi-analysis-title">AI 착수 분석</h2>', unsafe_allow_html=True)
-    if st.session_state.playing:
-        st.caption("자동 재생 중 · 일시정지 후 현재 수순 분석 가능")
-    else:
-        st.caption(f"선택한 장면: {turn} / {record.move_count}수")
-    st.caption("현재 수를 두기 **직전**에 AI가 추천한 위치를 분석합니다.")
-    if turn > 0:
-        lookup = (digest, turn, rules, float(komi), visits, binary, model, config)
-        if st.button("이 장면 AI 분석하기", type="primary", disabled=st.session_state.playing):
-            try:
-                query = build_query(record, turn - 1, rules, float(komi), visits)
-                # Query IDs are normally random; replace with a stable key so
-                # identical positions reuse the same analysis result.
-                position = {key: value for key, value in query.items() if key != "id"}
-                key_json = json.dumps(position, ensure_ascii=False, sort_keys=True)
-                query["id"] = hashlib.sha256(key_json.encode("utf-8")).hexdigest()[:24]
-                query_json = json.dumps(query, ensure_ascii=False, sort_keys=True)
-                with st.spinner("AI가 현재 장면을 분석하고 있습니다..."):
-                    result = cached_katago_analysis(query_json, binary, model, config)
-                st.session_state.analysis_key = lookup
-                st.session_state.analysis_result = result
-                # Immediately render the blue AI suggestion on the board.
-                st.rerun(scope="app")
-            except (KataGoError, ValueError, OSError) as exc:
-                st.session_state.analysis_key = None
-                st.session_state.analysis_result = None
-                st.error(str(exc))
+    with right:
+        turn = st.session_state.move_index
+        st.markdown('<h2 class="bi-analysis-title">AI 착수 분석</h2>', unsafe_allow_html=True)
+        if st.session_state.playing:
+            st.caption("자동 재생 중 · 일시정지 후 현재 수순 분석 가능")
+        else:
+            st.caption(f"선택한 장면: {turn} / {record.move_count}수")
+        st.caption("현재 수를 두기 **직전**에 AI가 추천한 위치를 분석합니다.")
+        if turn > 0:
+            lookup = (digest, turn, rules, float(komi), visits, binary, model, config)
+            if st.button("이 장면 AI 분석하기", type="primary", disabled=st.session_state.playing):
+                try:
+                    query = build_query(record, turn - 1, rules, float(komi), visits)
+                    # Query IDs are normally random; replace with a stable key so
+                    # identical positions reuse the same analysis result.
+                    position = {key: value for key, value in query.items() if key != "id"}
+                    key_json = json.dumps(position, ensure_ascii=False, sort_keys=True)
+                    query["id"] = hashlib.sha256(key_json.encode("utf-8")).hexdigest()[:24]
+                    query_json = json.dumps(query, ensure_ascii=False, sort_keys=True)
+                    with st.spinner("AI가 현재 장면을 분석하고 있습니다..."):
+                        result = cached_katago_analysis(query_json, binary, model, config)
+                    st.session_state.analysis_key = lookup
+                    st.session_state.analysis_result = result
+                    # Immediately render the blue AI suggestion on the board.
+                    st.rerun(scope="fragment")
+                except (KataGoError, ValueError, OSError) as exc:
+                    st.session_state.analysis_key = None
+                    st.session_state.analysis_result = None
+                    st.error(str(exc))
 
-        if st.session_state.get("analysis_key") == lookup:
-            analysis = st.session_state.get("analysis_result")
-            if analysis:
-                root_info = analysis.get("rootInfo", {})
-                black_winrate = root_info.get("winrate")
-                if isinstance(black_winrate, (int, float)):
-                    st.metric("흑 승률 (착수 직전)", f"{100 * black_winrate:.1f}%")
-                score_lead = root_info.get("scoreLead")
-                if isinstance(score_lead, (int, float)):
-                    st.metric("예상 점수 차이 (흑 기준)", f"{score_lead:+.1f}집")
-                st.caption(f"분석에 사용한 AI 탐색 횟수: {root_info.get('visits', '확인 불가')}회")
-                suggestions = top_candidates(analysis)
-                if suggestions:
-                    actual = gtp_coord(record.moves[turn - 1][1], record.size)
-                    best = str(suggestions[0].get("move", "확인 불가"))
-                    col_actual, col_ai = st.columns(2)
-                    with col_actual:
-                        st.metric("🟠 실제 착수", actual)
-                    with col_ai:
-                        st.metric("🔵 AI 추천", best)
-                    if actual.upper() == best.upper():
-                        st.caption("실제 착수와 AI의 1순위 추천이 같습니다.")
+            if st.session_state.get("analysis_key") == lookup:
+                analysis = st.session_state.get("analysis_result")
+                if analysis:
+                    root_info = analysis.get("rootInfo", {})
+                    black_winrate = root_info.get("winrate")
+                    if isinstance(black_winrate, (int, float)):
+                        st.metric("흑 승률 (착수 직전)", f"{100 * black_winrate:.1f}%")
+                    score_lead = root_info.get("scoreLead")
+                    if isinstance(score_lead, (int, float)):
+                        st.metric("예상 점수 차이 (흑 기준)", f"{score_lead:+.1f}집")
+                    st.caption(f"분석에 사용한 AI 탐색 횟수: {root_info.get('visits', '확인 불가')}회")
+                    suggestions = top_candidates(analysis)
+                    if suggestions:
+                        actual = gtp_coord(record.moves[turn - 1][1], record.size)
+                        best = str(suggestions[0].get("move", "확인 불가"))
+                        col_actual, col_ai = st.columns(2)
+                        with col_actual:
+                            st.metric("🟠 실제 착수", actual)
+                        with col_ai:
+                            st.metric("🔵 AI 추천", best)
+                        if actual.upper() == best.upper():
+                            st.caption("실제 착수와 AI의 1순위 추천이 같습니다.")
+                        else:
+                            st.caption("두 수가 다르지만, 곧바로 실수라는 뜻은 아닙니다.")
+                        with st.expander("다른 후보 수와 예상 진행 확인", expanded=False):
+                            st.caption("예상 진행은 실제 기보가 아닌 KataGo가 계산한 가상 수순입니다.")
+                            for i, candidate in enumerate(suggestions, start=1):
+                                move = candidate.get("move", "확인 불가")
+                                st.markdown(f"**{i}순위 후보 · {move}**")
+                                pv = (candidate.get("pv") or [])[:6]
+                                if pv:
+                                    st.caption("예상 진행: " + " → ".join(str(x) for x in pv))
+                                st.caption(f"AI가 후보를 검토한 횟수: {candidate.get('visits', '확인 불가')}회")
+                        st.caption("추천은 착수 전 기준입니다. 승률 손실은 전후 분석이 필요합니다.")
                     else:
-                        st.caption("두 수가 다르지만, 곧바로 실수라는 뜻은 아닙니다.")
-                    with st.expander("다른 후보 수와 예상 진행 확인", expanded=False):
-                        st.caption("예상 진행은 실제 기보가 아닌 KataGo가 계산한 가상 수순입니다.")
-                        for i, candidate in enumerate(suggestions, start=1):
-                            move = candidate.get("move", "확인 불가")
-                            st.markdown(f"**{i}순위 후보 · {move}**")
-                            pv = (candidate.get("pv") or [])[:6]
-                            if pv:
-                                st.caption("예상 진행: " + " → ".join(str(x) for x in pv))
-                            st.caption(f"AI가 후보를 검토한 횟수: {candidate.get('visits', '확인 불가')}회")
-                    st.caption("추천은 착수 전 기준입니다. 승률 손실은 전후 분석이 필요합니다.")
-                else:
-                    st.warning("후보 수가 반환되지 않았습니다.")
+                        st.warning("후보 수가 반환되지 않았습니다.")
+
+show_replay()
 
 # Study cards and local chat follow the 62/38 review workspace.
 st.divider()
