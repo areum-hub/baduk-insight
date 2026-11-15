@@ -551,6 +551,8 @@ if st.session_state.get("game_digest") != digest:
     st.session_state.analysis_key = None
     st.session_state.playing = False
     st.session_state.last_advance = time.monotonic()
+    st.session_state.replay_full_refresh = False
+    st.session_state.replay_start_pending = False
 
 # Keep both panes aligned: board + controls on the left, KataGo on the right.
 # The replay timer is active only while playing, so paused study clicks do
@@ -590,6 +592,18 @@ def show_replay():
         st.session_state.last_advance = anchor
         st.session_state.replay_start_pending = playing
         st.session_state.replay_full_refresh = True
+
+    def on_step(offset: int):
+        # Button callbacks update the selected move before Streamlit redraws
+        # the fragment. Do not force a second rerun for paused stepping.
+        was_playing = st.session_state.playing
+        st.session_state.playing = False
+        st.session_state.move_index = move_manually(
+            st.session_state.move_index, record.move_count, offset
+        )
+        st.session_state.last_advance = time.monotonic()
+        st.session_state.replay_start_pending = False
+        st.session_state.replay_full_refresh = was_playing
 
     current = st.session_state.move_index
     if st.session_state.playing:
@@ -639,13 +653,11 @@ def show_replay():
 
             controls = st.columns(3)
             with controls[0]:
-                if st.button("⏮ 이전", disabled=current == 0, key="replay_previous", use_container_width=True):
-                    was_playing = st.session_state.playing
-                    st.session_state.playing = False
-                    st.session_state.move_index = move_manually(current, record.move_count, -1)
-                    st.session_state.last_advance = time.monotonic()
-                    # Rebuild the app only if the live fragment timer must stop.
-                    st.rerun(scope="app" if was_playing else "fragment")
+                st.button(
+                    "⏮ 이전", disabled=current == 0,
+                    key="replay_previous", use_container_width=True,
+                    on_click=on_step, args=(-1,),
+                )
             with controls[1]:
                 st.button(
                     "▶ 재생" if not st.session_state.playing else "⏸ 일시정지",
@@ -655,12 +667,11 @@ def show_replay():
                     use_container_width=True,
                 )
             with controls[2]:
-                if st.button("⏭ 다음", disabled=current >= record.move_count, key="replay_next", use_container_width=True):
-                    was_playing = st.session_state.playing
-                    st.session_state.playing = False
-                    st.session_state.move_index = move_manually(current, record.move_count, 1)
-                    st.session_state.last_advance = time.monotonic()
-                    st.rerun(scope="app" if was_playing else "fragment")
+                st.button(
+                    "⏭ 다음", disabled=current >= record.move_count,
+                    key="replay_next", use_container_width=True,
+                    on_click=on_step, args=(1,),
+                )
 
             # A key per position avoids rewriting an already rendered slider widget.
             seek_key = seek_widget_key(digest, current)
@@ -670,8 +681,9 @@ def show_replay():
                 st.session_state.playing = False
                 st.session_state.move_index = int(st.session_state[seek_key])
                 st.session_state.last_advance = time.monotonic()
-                # A paused seek needs only this fragment; a live seek must also stop
-                # the periodic timer, so it requests one full app refresh.
+                st.session_state.replay_start_pending = False
+                # Paused seeks need only the fragment; live seeks also stop
+                # the timer, so request one full app refresh.
                 st.session_state.replay_full_refresh = was_playing
 
             st.slider(
