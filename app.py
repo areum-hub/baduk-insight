@@ -16,7 +16,7 @@ from src.sgf_service import load_sgf, replay
 from src.playback import advance, move_manually
 from src.ollama_client import OllamaError
 from src.rag_pipeline import build_index, get_collection, load_notes
-from src.fast_study import quick_answer
+from src.study_guide import grouped_study_notes, note_title, note_answer
 
 PROJECT = Path(__file__).resolve().parent
 DATA_DIR = PROJECT / "data" / "sgf"
@@ -490,49 +490,20 @@ with right:
                     st.warning("후보 수가 반환되지 않았습니다.")
 
     st.divider()
-    st.markdown("### 바둑 AI에게 물어보기")
-    current_move_label = (
-        f"{turn}수 · {gtp_coord(record.moves[turn-1][1], record.size)}"
-        if turn else "대국 시작 전"
-    )
-    st.caption(f"현재 복기 장면: {current_move_label}")
-    st.caption("보유한 바둑 학습 노트에서 관련 내용을 바로 찾아 보여드립니다.")
-    scene_id = (digest, turn)
-    if st.session_state.get("rag_scene") != scene_id:
-        st.session_state.rag_scene = scene_id
-        st.session_state.rag_messages = []
-
-    # One-click starter questions are visible when the conversation is empty.
-    starter_question = None
-    if not st.session_state.rag_messages:
-        st.markdown("**어떤 점이 궁금하세요?**")
-        st.caption("아래 질문을 선택하거나 직접 입력해 보세요.")
-        if st.button("돌의 연결은 왜 중요할까?", key="study_starter_2", use_container_width=True):
-            starter_question = "돌의 연결이 중요한 이유를 초보자도 이해하기 쉽게 설명해줘."
-        if st.button("축과 장문은 어떻게 다를까?", key="study_starter_3", use_container_width=True):
-            starter_question = "축과 장문의 차이를 쉽게 설명해줘."
-    for message in st.session_state.rag_messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-    typed_question = st.chat_input(
-        "바둑에서 궁금한 점을 입력하세요...",
-        disabled=st.session_state.playing,
-        key="study_chat_input",
-    )
-    question = starter_question or typed_question
-    if question:
-        st.session_state.rag_messages.append({"role": "user", "content": question})
-        with st.chat_message("user"):
-            st.markdown(question)
-        with st.chat_message("assistant"):
-            try:
-                reply, sources = quick_answer(question, load_notes())
-                st.markdown(reply)
-                st.session_state.rag_messages.append({
-                    "role": "assistant", "content": reply, "sources": sources,
-                })
-            except (ValueError, OSError) as exc:
-                st.error(f"학습 노트를 확인하지 못했습니다: {exc}")
-                st.session_state.rag_messages.pop()
-
-    st.caption("학습 노트에 없는 실전 수읽기·승률·최선 수는 판단하지 않습니다. 착수 분석은 KataGo에서 확인하세요.")
+    st.markdown("### 바둑 개념 학습")
+    st.caption("학습할 분야를 선택하면 준비된 설명이 바로 나타납니다. 질문을 입력하거나 답변을 기다릴 필요가 없습니다.")
+    try:
+        study_groups = grouped_study_notes(load_notes())
+        if not study_groups:
+            st.info("표시할 바둑 학습 노트가 없습니다.")
+        else:
+            study_tabs = st.tabs(list(study_groups))
+            for study_tab, (category, lessons) in zip(study_tabs, study_groups.items()):
+                with study_tab:
+                    st.caption(f"{category} · {len(lessons)}개 학습 주제")
+                    for lesson in lessons:
+                        with st.container(border=True):
+                            st.markdown(f"#### {note_title(lesson)}")
+                            st.markdown(note_answer(lesson))
+    except (ValueError, OSError) as exc:
+        st.error(f"바둑 학습 노트를 불러오지 못했습니다: {exc}")
