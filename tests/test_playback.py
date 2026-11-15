@@ -1,7 +1,7 @@
 """Tests for SGF autoplay timing and manual navigation."""
 import pytest
 
-from src.playback import advance, move_manually, toggle_playback
+from src.playback import advance, move_manually, seek_widget_key, toggle_playback
 
 
 def test_one_move_at_each_configured_speed():
@@ -49,3 +49,12 @@ def test_pause_does_not_advance_and_resume_starts_fresh_two_second_interval():
 
 def test_resume_at_last_move_remains_stopped():
     assert toggle_playback(False, 250, 250, 22.0) == (False, 22.0)
+
+
+def test_autoplay_slider_key_tracks_displayed_position():
+    digest = "1234567890abcdef" + "0" * 48
+    assert seek_widget_key(digest, 10) != seek_widget_key(digest, 11)
+    assert seek_widget_key(digest, 10) == seek_widget_key(digest, 10)
+    assert seek_widget_key("abcdef1234567890", 10) != seek_widget_key(digest, 10)
+    with pytest.raises(ValueError):
+        seek_widget_key(digest, -1)
