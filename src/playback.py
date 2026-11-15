@@ -30,3 +30,19 @@ def advance(
 def move_manually(current_move: int, last_move: int, offset: int) -> int:
     """Return a clamped manual navigation position."""
     return min(max(current_move + offset, 0), last_move)
+
+
+def toggle_playback(
+    playing: bool,
+    current_move: int,
+    last_move: int,
+    now: float,
+) -> tuple[bool, float]:
+    """Toggle pause/play and start a fresh interval without changing the move.
+
+    The elapsed time before a pause must never carry into the next resume.
+    Return the new playing state and a fresh monotonic time anchor.
+    """
+    if last_move < 0 or not 0 <= current_move <= last_move:
+        raise ValueError("Current move out of bounds.")
+    return (not playing and current_move < last_move), now
