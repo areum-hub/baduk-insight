@@ -46,3 +46,14 @@ def toggle_playback(
     if last_move < 0 or not 0 <= current_move <= last_move:
         raise ValueError("Current move out of bounds.")
     return (not playing and current_move < last_move), now
+
+
+def seek_widget_key(game_digest: str, move_index: int) -> str:
+    """Use a fresh slider key when the board position changes.
+
+    The autoplay fragment must not repeatedly assign to the Session State
+    of an existing slider widget; that can conflict with Streamlit reruns.
+    """
+    if move_index < 0:
+        raise ValueError("Move index must be nonnegative.")
+    return f"replay_seek_{game_digest[:16]}_{move_index}"
