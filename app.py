@@ -273,9 +273,7 @@ def show_study_guide():
             (n for n in lessons if n["path"] == st.session_state.get("selected_lesson")),
             None,
         )
-        if selected_note is None:
-            st.info("읽고 싶은 학습 카드를 선택하세요.")
-        else:
+        if selected_note is not None:
             with st.container(border=True):
                 st.markdown(f"#### {note_title(selected_note)}")
                 st.markdown(note_answer(selected_note))
