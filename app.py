@@ -560,7 +560,7 @@ def show_replay():
             st.session_state.last_advance = new_anchor
         if not still_playing:
             st.session_state.playing = False
-            st.rerun()
+            st.rerun(scope="app")
     current = st.session_state.move_index
     controls = st.columns(3)
     with controls[0]:
@@ -568,7 +568,7 @@ def show_replay():
             st.session_state.playing = False
             st.session_state.move_index = move_manually(current, record.move_count, -1)
             st.session_state.last_advance = time.monotonic()
-            st.rerun()
+            st.rerun(scope="app")
     with controls[1]:
         st.button(
             "▶ 재생" if not st.session_state.playing else "⏸ 일시정지",
@@ -582,7 +582,7 @@ def show_replay():
             st.session_state.playing = False
             st.session_state.move_index = move_manually(current, record.move_count, 1)
             st.session_state.last_advance = time.monotonic()
-            st.rerun()
+            st.rerun(scope="app")
     # Do not mutate the Session State of an already-instantiated slider.
     # Each displayed position receives an independent widget key. The
     # callback reads the user's input before the fragment timer runs again.
