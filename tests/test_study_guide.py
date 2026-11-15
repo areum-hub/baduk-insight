@@ -1,5 +1,5 @@
 """Category grouping and authored-explanation display tests."""
-from src.study_guide import grouped_study_notes, note_answer, note_title
+from src.study_guide import classify_note, grouped_study_notes, note_answer, note_title
 
 
 def test_note_body_is_original_text_without_learning_prompt():
@@ -28,3 +28,31 @@ def test_groups_notes_only_once_and_keeps_contents():
 def test_missing_or_empty_note_does_not_create_blank_card():
     notes = [{"title": "empty", "path": "empty.md", "text": "# 비어 있음"}]
     assert grouped_study_notes(notes) == {}
+
+
+def test_fuseki_does_not_match_seki_substring():
+    """English Go terms must not accidentally match inside other terms."""
+    opening = {
+        "title": "Fuseki",
+        "path": "05_fuseki.md",
+        "text": "# 포석과 귀·변·중앙\n초반에 전역적 배치를 검토한다.",
+    }
+    seki = {
+        "title": "Seki",
+        "path": "13_seki.md",
+        "text": "# 빅\n서로 상대를 잡을 수 없는 상태다.",
+    }
+    assert classify_note(opening) == "포석·돌의 형태"
+    assert classify_note(seki) == "기본 규칙·돌의 생사"
+
+
+def test_english_filename_keywords_still_match_when_standalone():
+    """Token matching must keep the names used by the actual note archive."""
+    for filename, category in (
+        ("01_liberties.md", "기본 규칙·돌의 생사"),
+        ("05_fuseki.md", "포석·돌의 형태"),
+        ("12_ko_fight.md", "전투·수읽기"),
+        ("14_endgame.md", "끝내기·형세"),
+    ):
+        note = {"title": "Example", "path": filename, "text": "# Example\n본문"}
+        assert classify_note(note) == category
