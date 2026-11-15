@@ -37,6 +37,18 @@ st.set_page_config(page_title="Baduk Insight", page_icon="⚫", layout="wide", i
 st.markdown(
     """
     <style>
+    /* Noto Sans KR gives both Korean copy and English match names a calm UI style.
+       If the web font cannot load, use fonts already available on the OS. */
+    @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap");
+    :root {
+        --bi-font: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", "Segoe UI", sans-serif;
+    }
+    html, body, .stApp,
+    .stApp :is(h1, h2, h3, h4, h5, h6, p, span, label, small, button, input, textarea, select),
+    section[data-testid="stSidebar"],
+    section[data-testid="stSidebar"] :is(h1, h2, h3, h4, h5, h6, p, span, label, small, button, input, textarea, select) {
+        font-family: var(--bi-font) !important;
+    }
     .bi-brand-header {
         display: flex;
         align-items: center;
@@ -102,11 +114,11 @@ st.markdown(
     }
     /* Clear hierarchy for the match and KataGo sections. */
     .bi-game-title {
-        font-size: clamp(1.95rem, 2.8vw, 2.7rem) !important;
-        font-weight: 750 !important;
-        line-height: 1.24 !important;
-        letter-spacing: -.03em;
-        margin: .3rem 0 .5rem !important;
+        font-size: clamp(1.15rem, 1.55vw, 1.45rem) !important;
+        font-weight: 600 !important;
+        line-height: 1.45 !important;
+        letter-spacing: -.015em;
+        margin: .2rem 0 .25rem !important;
         overflow-wrap: anywhere;
     }
     .bi-analysis-title {
