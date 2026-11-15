@@ -10,7 +10,10 @@ import streamlit.components.v1 as components
 from sgfmill import sgf
 
 from src.cwi_source import ARCHIVE_URL, CWI_CHOICES, fetch_cwi_sgf
-from src.go_seigen_source import GO_SEIGEN_ARCHIVE_URL, import_go_seigen
+from src.go_seigen_source import (
+    GO_SEIGEN_ARCHIVE_URL, import_go_seigen, import_go_seigen_archive,
+    local_go_seigen_games,
+)
 from src.board_svg import render_board
 from src.katago_client import KataGoError, build_query, gtp_coord, run_analysis, top_candidates
 from src.local_settings import resolved_settings, save_settings, suggested_paths
@@ -198,60 +201,88 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-available = sorted(DATA_DIR.glob("*.sgf")) if DATA_DIR.exists() else []
+# Load only the Go Seigen collection for the default review screen.
+# Do not mix previously downloaded SGFs or unrelated sample games into this list.
+available = local_go_seigen_games(DATA_DIR)
+if not available and not st.session_state.get("go_seigen_initial_attempted", False):
+    st.session_state.go_seigen_initial_attempted = True
+    try:
+        with st.spinner("오청원 기보를 원본 아카이브에서 준비하는 중..."):
+            import_go_seigen(DATA_DIR / "go_seigen")
+        available = local_go_seigen_games(DATA_DIR)
+        st.session_state.pop("go_seigen_initial_error", None)
+    except (OSError, ValueError, EOFError) as exc:
+        st.session_state.go_seigen_initial_error = str(exc)
+
 with st.sidebar:
     with st.container(border=True):
-        st.subheader("01 · 기보 선택")
-        st.caption("오청원 기보를 중심으로 복기합니다. 원본 SGF는 GitHub에 재배포하지 않습니다.")
-        if st.button("오청원 기보를 CWI에서 내 PC로 가져오기", key="load_go_seigen", use_container_width=True):
-            try:
-                with st.spinner("CWI 원본 아카이브에서 기보를 내려받는 중..."):
-                    imported = import_go_seigen(DATA_DIR)
-                st.success(f"오청원 기보 {imported}개를 로컬에 저장했습니다.")
-                st.rerun()
-            except (OSError, ValueError, EOFError) as exc:
-                st.error(f"오청원 기보 가져오기 실패: {exc}")
-        st.caption("원본 자료: " + GO_SEIGEN_ARCHIVE_URL)
-        source = st.radio(
-            "기보 선택 방법",
-            ["Local CWI samples", "Upload SGF"],
-            key="source_mode",
-            format_func=lambda item: "내 기보에서 선택" if item == "Local CWI samples" else "SGF 업로드",
-        )
+        st.subheader("01 · 오청원 기보 선택")
+        st.caption("기본 복기 목록은 오청원(Go Seigen) 대국만 표시합니다.")
         raw = None
         name = ""
-        if source == "Upload SGF":
-            st.link_button(
-                "CWI 전체 기보 목록 보기", ARCHIVE_URL,
-                use_container_width=True,
-            )
+        source = st.radio(
+            "기보 선택 방법",
+            ["Go Seigen", "Upload SGF"],
+            key="source_mode",
+            format_func=lambda item: "오청원 기보" if item == "Go Seigen" else "다른 SGF 직접 열기",
+        )
+        if source == "Go Seigen":
+            if not available:
+                st.warning("오청원 기보를 아직 불러오지 못했습니다.")
+                if st.session_state.get("go_seigen_initial_error"):
+                    st.caption("자동 다운로드 오류: " + st.session_state["go_seigen_initial_error"])
+                if st.button("CWI 원본에서 다시 가져오기", key="retry_go_seigen", use_container_width=True):
+                    try:
+                        with st.spinner("오청원 기보를 내려받는 중..."):
+                            imported = import_go_seigen(DATA_DIR / "go_seigen")
+                        st.session_state.pop("go_seigen_initial_error", None)
+                        st.success(f"오청원 기보 {imported}개를 저장했습니다.")
+                        st.rerun()
+                    except (OSError, ValueError, EOFError) as exc:
+                        st.error(f"다운로드 실패: {exc}")
+                archive = st.file_uploader(
+                    "보유한 go_seigen.tgz 파일 가져오기",
+                    type=["tgz", "gz"],
+                    key="go_seigen_tgz_upload",
+                )
+                if archive is not None and st.button("TGZ에서 오청원 기보 등록", key="import_go_seigen_tgz"):
+                    try:
+                        imported = import_go_seigen_archive(
+                            archive.getvalue(), DATA_DIR / "go_seigen"
+                        )
+                        st.session_state.pop("go_seigen_initial_error", None)
+                        st.success(f"오청원 기보 {imported}개를 등록했습니다.")
+                        st.rerun()
+                    except (OSError, ValueError, EOFError) as exc:
+                        st.error(f"기보 등록 실패: {exc}")
+            else:
+                st.caption(f"오청원 대국 {len(available)}개 · 첫 대국 자동 선택")
+                selected = st.selectbox(
+                    "복기할 오청원 대국",
+                    available,
+                    format_func=lambda path: path.stem,
+                    key="go_seigen_game",
+                )
+                if selected:
+                    raw, name = selected.read_bytes(), selected.name
+        else:
+            st.link_button("CWI 기보 아카이브", ARCHIVE_URL, use_container_width=True)
             import_mode = st.radio(
                 "불러오는 방법",
                 ["CWI 원본에서 바로 열기", "내 컴퓨터 파일 업로드"],
                 key="sgf_import_mode",
             )
             if import_mode == "CWI 원본에서 바로 열기":
-                selection = st.selectbox(
-                    "CWI 원본 기보",
-                    ["직접 SGF 주소 입력", *CWI_CHOICES],
-                    key="cwi_game_selection",
-                    help="원본 사이트의 다른 대국도 SGF 파일 주소로 열 수 있습니다.",
-                )
-                if selection == "직접 SGF 주소 입력":
-                    cwi_url = st.text_input(
-                        "SGF 원본 URL",
-                        placeholder="https://homepages.cwi.nl/~aeb/go/games/games/.../game.sgf",
-                        key="cwi_original_url",
-                    ).strip()
-                else:
-                    cwi_url = CWI_CHOICES[selection]
+                cwi_url = st.text_input(
+                    "SGF 원본 URL",
+                    placeholder="https://homepages.cwi.nl/~aeb/go/games/games/.../game.sgf",
+                    key="cwi_original_url",
+                ).strip()
                 if st.button("이 기보로 복기 시작", key="cwi_open_game", disabled=not cwi_url):
                     try:
                         fetched_raw, fetched_name = fetch_cwi_sgf(cwi_url)
                         st.session_state["cwi_loaded"] = {
-                            "url": cwi_url,
-                            "raw": fetched_raw,
-                            "name": fetched_name,
+                            "url": cwi_url, "raw": fetched_raw, "name": fetched_name
                         }
                         st.session_state.pop("cwi_load_error", None)
                     except ValueError as exc:
@@ -267,12 +298,6 @@ with st.sidebar:
                 uploaded = st.file_uploader("SGF 파일 선택", type=["sgf"])
                 if uploaded is not None:
                     raw, name = uploaded.getvalue(), uploaded.name
-        elif available:
-            selected = st.selectbox("복기할 대국", available, format_func=lambda p: p.name)
-            if selected:
-                raw, name = selected.read_bytes(), selected.name
-        else:
-            st.info("PC에 저장된 기보가 없습니다. 'SGF 업로드'에서 CWI 원본 기보를 받아 불러오세요.")
 
     analysis_sidebar_card = st.container(border=True)
     with analysis_sidebar_card:
