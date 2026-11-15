@@ -19,6 +19,24 @@ Python과 Streamlit으로 구현했으며, PC에서 실행해 웹 브라우저�
 
 > KataGo 수치와 AI 추천으로 프로기사의 실제 의도를 확정할 수 없습니다. 로컬 학습 채팅은 바둑 개념 노트에 기반하며, 현재 KataGo 국면 데이터를 자동으로 전달받지 않습니다.
 
+## 프로젝트 구조
+
+```text
+baduk-insight/
+├── app.py                # Streamlit 대시보드
+├── src/                  # SGF·바둑판·재생·KataGo·Ollama·학습 로직
+├── knowledge/            # 바둑 개념 Markdown 노트 16개
+├── configs/              # KataGo 설정
+├── tests/                # pytest 테스트
+├── docs/                 # Windows 가이드·시스템 구조·개발 기록
+├── requirements.txt
+├── .gitignore
+├── LICENSE
+└── README.md
+```
+
+**오청원 SGF 원본, 가상환경, KataGo 모델, 로컬 설정·캐시·ChromaDB 데이터는 GitHub에 포함하지 않습니다.**
+
 ## Windows 실행
 
 Python이 필요합니다. **Git 설치 없이** GitHub 최신 ZIP을 받아 실행할 수 있습니다. 기존 Streamlit을 실행 중이라면 `Ctrl + C`로 종료하세요.
@@ -67,24 +85,6 @@ ollama pull qwen3:1.7b
 ```
 
 기본 질문은 관련 노트를 참고하는 **로컬 AI** 방식입니다. ChromaDB 색인 동기화는 사이드바 **03 · 학습 자료**의 선택 기능이며 기본 질문에 필요하지 않습니다.
-
-## 프로젝트 구조
-
-```text
-baduk-insight/
-├── app.py                # Streamlit 대시보드
-├── src/                  # SGF·바둑판·재생·KataGo·Ollama·학습 로직
-├── knowledge/            # 바둑 개념 Markdown 노트 16개
-├── configs/              # KataGo 설정
-├── tests/                # pytest 테스트
-├── docs/                 # Windows 가이드·시스템 구조·개발 기록
-├── requirements.txt
-├── .gitignore
-├── LICENSE
-└── README.md
-```
-
-**오청원 SGF 원본, 가상환경, KataGo 모델, 로컬 설정·캐시·ChromaDB 데이터는 GitHub에 포함하지 않습니다.**
 
 ## 테스트 및 검증
 
