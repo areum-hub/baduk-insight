@@ -5,9 +5,10 @@ No commercial API and no embedding/index dependency. Ollama must run locally.
 from __future__ import annotations
 
 from src.fast_study import quick_answer
+from src.ollama_client import CHAT_MODEL
 from src.study_guide import note_answer, note_title
 
-LOCAL_CHAT_MODEL = "qwen3:1.7b"
+LOCAL_CHAT_MODEL = CHAT_MODEL
 
 
 def build_study_chat_messages(
@@ -20,7 +21,7 @@ def build_study_chat_messages(
     if not question.strip():
         raise ValueError("질문을 입력해 주세요.")
 
-    matched_excerpt, matched_sources = quick_answer(question, notes)
+    _matched_excerpt, matched_sources = quick_answer(question, notes)
     useful_notes: list[dict] = []
     if selected_note and note_answer(selected_note):
         useful_notes.append(selected_note)
