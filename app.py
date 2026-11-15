@@ -10,6 +10,7 @@ import streamlit.components.v1 as components
 from sgfmill import sgf
 
 from src.cwi_source import ARCHIVE_URL, CWI_CHOICES, fetch_cwi_sgf
+from src.go_seigen_source import GO_SEIGEN_ARCHIVE_URL, import_go_seigen
 from src.board_svg import render_board
 from src.katago_client import KataGoError, build_query, gtp_coord, run_analysis, top_candidates
 from src.local_settings import resolved_settings, save_settings, suggested_paths
@@ -201,6 +202,16 @@ available = sorted(DATA_DIR.glob("*.sgf")) if DATA_DIR.exists() else []
 with st.sidebar:
     with st.container(border=True):
         st.subheader("01 · 기보 선택")
+        st.caption("오청원 기보를 중심으로 복기합니다. 원본 SGF는 GitHub에 재배포하지 않습니다.")
+        if st.button("오청원 기보를 CWI에서 내 PC로 가져오기", key="load_go_seigen", use_container_width=True):
+            try:
+                with st.spinner("CWI 원본 아카이브에서 기보를 내려받는 중..."):
+                    imported = import_go_seigen(DATA_DIR)
+                st.success(f"오청원 기보 {imported}개를 로컬에 저장했습니다.")
+                st.rerun()
+            except (OSError, ValueError, EOFError) as exc:
+                st.error(f"오청원 기보 가져오기 실패: {exc}")
+        st.caption("원본 자료: " + GO_SEIGEN_ARCHIVE_URL)
         source = st.radio(
             "기보 선택 방법",
             ["Local CWI samples", "Upload SGF"],
