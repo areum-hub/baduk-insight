@@ -7,7 +7,7 @@
 ## 1. 사용자 흐름과 화면 구조
 
 ```text
-CWI HTTPS SGF / 컴퓨터 SGF 업로드 / data/sgf/
+CWI 오청원 TGZ → data/sgf/go_seigen/ / SGF 업로드 / CWI 직접 URL
                      │
                 sgfmill 파싱
                      │
@@ -42,6 +42,7 @@ SGF가 없어도 학습 카드 및 로컬 질문 화면은 표시할 수 있습�
 | `src/sgf_service.py` | SGF 기본 메타데이터, 설정 돌·메인 수순, 특정 수까지 재생 |
 | `src/board_svg.py` | SVG 9·13·19줄 바둑판, 실제 착수·AI 추천 테두리 |
 | `src/playback.py` | 자동 진행 및 수동 이동, 백그라운드 탭에서도 1회에 최대 한 수 |
+| `src/go_seigen_source.py` | 오청원 원본 TGZ를 로컬 전용 폴더에 저장, 오청원 포함·재생 가능한 SGF 필터링 |
 | `src/cwi_source.py` | 공식 CWI HTTPS 링크 범위 검사, 다운로드 크기·SGF 유효성 확인 |
 | `src/katago_client.py` | KataGo JSON 분석 요청, 흑 기준 분석 결과, 상위 후보 |
 | `src/local_settings.py` | 개인 PC 전용 엔진·모델·분석 설정 |
@@ -50,22 +51,21 @@ SGF가 없어도 학습 카드 및 로컬 질문 화면은 표시할 수 있습�
 | `src/study_chat.py` | 선택 카드 + 연관 노트 + 최근 대화로 근거 제한 프롬프트 |
 | `src/ollama_client.py` | 로컬 Ollama `/api/chat` 스트리밍, 선택형 임베딩 API |
 | `src/rag_pipeline.py` | 기존 ChromaDB·EmbeddingGemma **선택 실험** |
-| `scripts/download_cwi_samples.py` | 앱이 호출하지 않는 독립 실행형 샘플 다운로드 유틸리티 |
-| `start_baduk.ps1` | Windows GitHub main 확인·안전 동기화·앱 시작 |
 
 ## 3. SGF와 CWI 입력 경계
 
-- **PC 파일:** `data/sgf/`의 `.sgf` 선택 또는 직접 업로드
+- **오청원 기본 목록:** 원본 TGZ를 PC의 `data/sgf/go_seigen/`에 보관하며, 오청원 기보 중 수순을 재생할 수 있는 SGF만 선택
+- **다른 기보:** 직접 SGF 업로드 또는 CWI 개별 URL 열기
 - **CWI 원본:** `https://homepages.cwi.nl/~aeb/go/games/games/` 범위의 직접 `.sgf` 링크만 허용
 - URL은 HTTPS·호스트·경로·리다이렉트·쿼리 등을 검사하고 최대 2MB를 읽음
 - Windows의 신뢰 인증서를 `truststore`로 사용하며 SSL 검증을 끄지 않음
 - 파일은 `sgfmill`에서 파싱하고 9·13·19줄 바둑판만 지원
 - 외부 기보의 메인 수순을 복기하는 앱으로, 전문 SGF 분기 편집기는 아님
-- 직접 열어 본 CWI 기보는 Streamlit 세션 상태에 유지; 다운로드 도구를 사용하지 않는 한 `data/sgf/`에 자동 저장하지 않음
+- 개별 CWI SGF URL로 열어 본 기보는 Streamlit 세션 상태에 유지하며, 오청원 TGZ 자동 다운로드는 로컬 `data/sgf/go_seigen/`에만 저장
 
 ## 4. 복기와 KataGo 분석
 
-`src/playback.advance`는 매 이동 간격이 지났을 때 **한 번에 한 수**를 진행하며 현재 UI는 **2초 고정**입니다. 수동 버튼 및 슬라이더 이동은 자동 재생을 중단합니다. 바둑판은 Streamlit fragment를 사용해 갱신합니다.
+`src/playback.advance`는 매 이동 간격이 지났을 때 **한 번에 한 수**를 진행하며 현재 UI는 **2초 고정**입니다. 수동 버튼 및 슬라이더 이동은 자동 재생을 중단합니다. 바둑판은 Streamlit fragment를 사용해 갱신합니다. **수순 슬라이더는 표시 수순별 개별 키를 사용하며, 자동 진행 중 위젯 세션 상태를 직접 덮어쓰지 않습니다.**
 
 `src/katago_client.build_query(record, turn - 1, ...)`는 현재 표시한 수 N이 **두어지기 전** 국면을 요청합니다. 실제 수와 AI 1순위 제안을 주황/파랑 테두리로 구별합니다. 반환값의 `rootInfo.winrate`와 `rootInfo.scoreLead`는 `configs/analysis_local.cfg`의 **BLACK 기준** 설정을 전제로 표시합니다.
 
@@ -94,4 +94,4 @@ Ollama 기본 접속지는 **`http://127.0.0.1:11434`**입니다. 유료 외부 
 
 GitHub는 **Public**이며 `.gitignore`에서 SGF 다운로드, PC별 설정, ChromaDB 파일, 분석 로그와 신경망 가중치 등을 제외합니다. 이미 Git에 커밋된 파일과 과거 기록은 `.gitignore`로 숨겨지지 않으므로 공개 저장소의 커밋 내역도 별도로 점검해야 합니다. 원본 기보는 해당 사이트의 권리·이용 조건을 확인해야 합니다.
 
-`tests/`는 파일 파싱·원격 URL 검증·바둑판 마커·복기·KataGo 요청·학습 카드·질문 프롬프트 등을 테스트하고, 일부 테스트는 가짜 KataGo·Ollama를 사용합니다. **Windows에서의 전체 사용자 인터페이스·외부 HTTPS·실제 엔진/모델 응답은 최신 코드 기준 미검증**입니다. 현재 상태와 다음 점검은 [개발 기록](DEVELOPMENT_LOG.md)에 정리합니다.
+`tests/`는 파일 파싱·원격 URL 검증·바둑판 마커·복기·KataGo 요청·학습 카드·질문 프롬프트 등을 테스트하고, 일부 테스트는 가짜 KataGo·Ollama를 사용합니다. **Windows에서의 전체 사용자 인터페이스·외부 HTTPS·실제 엔진/모델 응답은 최신 코드 기준 미검증**입니다. Windows에서는 Git 동기화 스크립트 대신 GitHub 최신 ZIP을 내려받아 실행합니다. 현재 상태와 다음 점검은 [개발 기록](DEVELOPMENT_LOG.md)에 정리합니다.
