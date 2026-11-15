@@ -71,11 +71,33 @@ st.markdown(
     .bi-brand-title {
         margin: 0 !important;
         padding: 0 !important;
-        font-size: clamp(1.75rem, 3vw, 2.25rem) !important;
-        line-height: 1.15 !important;
+        font-size: clamp(2.3rem, 3.8vw, 3.25rem) !important;
+        line-height: 1.12 !important;
         letter-spacing: -0.035em !important;
         font-weight: 700 !important;
         color: inherit !important;
+    }
+    .bi-brand-subtitle {
+        margin: .45rem 0 0 !important;
+        font-size: clamp(1rem, 1.4vw, 1.17rem) !important;
+        line-height: 1.5 !important;
+        color: var(--text-color);
+        opacity: .74;
+        letter-spacing: -.015em;
+    }
+    .bi-study-title {
+        margin: 0 0 .35rem !important;
+        font-size: clamp(1.85rem, 2.4vw, 2.3rem) !important;
+        line-height: 1.25 !important;
+        font-weight: 720;
+        letter-spacing: -.03em;
+    }
+    .bi-study-subtitle {
+        margin: 0 0 1.15rem !important;
+        font-size: clamp(1.03rem, 1.35vw, 1.15rem) !important;
+        line-height: 1.55;
+        color: var(--text-color);
+        opacity: .75;
     }
     /* Quiet study sidebar. No duplicated logo or decorative header. */
     section[data-testid="stSidebar"] {
@@ -118,7 +140,10 @@ st.markdown(
             <span class="bi-stone bi-stone-black"></span>
             <span class="bi-stone bi-stone-white"></span>
         </span>
-        <h1 class="bi-brand-title">Baduk Insight</h1>
+        <div>
+            <h1 class="bi-brand-title">Baduk Insight</h1>
+            <p class="bi-brand-subtitle">프로 바둑 기보 복기 · AI 착수 분석 · 바둑 개념 학습</p>
+        </div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -247,8 +272,11 @@ with st.sidebar:
 
 
 def show_study_guide():
-    st.markdown("### 바둑 개념 학습")
-    st.caption("분야와 학습 카드를 선택하면 해당 설명을 읽을 수 있습니다.")
+    st.markdown(
+        '<h2 class="bi-study-title">바둑 개념 학습</h2>'
+        '<p class="bi-study-subtitle">분야를 선택하고 학습 카드를 눌러 설명을 읽어보세요.</p>',
+        unsafe_allow_html=True,
+    )
     try:
         study_groups = grouped_study_notes(load_notes())
         if not study_groups:
@@ -280,15 +308,12 @@ def show_study_guide():
                 st.markdown(note_answer(selected_note))
     except (ValueError, OSError) as exc:
         st.error(f"바둑 학습 노트를 불러오지 못했습니다: {exc}")
-    st.divider()
-    st.markdown("#### AI에게 추가 질문하기")
-    st.caption("무료 로컬 Ollama · Qwen3 1.7B · 학습 노트 기반 답변")
     history = st.session_state.setdefault("study_chat_messages", [])
     for message in history:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
     question = st.chat_input(
-        "학습한 바둑 개념에서 궁금한 점을 질문하세요...",
+        "학습한 개념에서 궁금한 점을 질문하세요...",
         key="local_study_chat",
     )
     if question:
