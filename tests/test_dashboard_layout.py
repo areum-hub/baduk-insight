@@ -56,8 +56,20 @@ def test_match_header_uses_parsed_sgf_metadata_not_filename():
 
 def test_paused_manual_controls_avoid_full_app_reruns():
     replay = APP_SOURCE.split("def show_replay():", 1)[1].split("\nshow_replay()", 1)[0]
-    assert replay.count('st.rerun(scope="app" if was_playing else "fragment")') == 2
+    assert "def on_step(offset: int):" in replay
+    assert "st.session_state.move_index = move_manually(" in replay
+    assert 'on_click=on_step, args=(-1,)' in replay
+    assert 'on_click=on_step, args=(1,)' in replay
+    assert 'st.rerun(scope="app" if was_playing else "fragment")' not in replay
     assert "st.session_state.replay_full_refresh = was_playing" in replay
     assert "st.session_state.replay_start_pending = playing" in replay
     assert 'st.session_state.pop("replay_start_pending", False)' in replay
     assert replay.index("left, right = st.columns([62, 38]") < replay.index("with right:")
+
+
+def test_optional_chromadb_is_not_imported_on_normal_dashboard_startup():
+    root = Path(__file__).resolve().parents[1]
+    source = (root / "src" / "rag_pipeline.py").read_text(encoding="utf-8")
+    assert "def get_collection(" in source
+    assert source.index("def get_collection(") < source.index("    import chromadb")
+    assert "\nimport chromadb\n" not in source
