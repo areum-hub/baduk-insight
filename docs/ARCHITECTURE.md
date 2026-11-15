@@ -2,7 +2,7 @@
 
 [README](../README.md) · [Windows 실행](SETUP_WINDOWS.md) · [개발 기록](DEVELOPMENT_LOG.md)
 
-**기준:** 2026-11-15 · Private GitHub `main`. 이 문서는 코드에 실제 연결된 기능과 선택적으로 보존된 실험 코드를 구분합니다.
+**기준:** 2026-11-15 · Public GitHub `main`. 이 문서는 코드에 실제 연결된 기능과 선택적으로 보존된 실험 코드를 구분합니다.
 
 ## 1. 사용자 흐름과 화면 구조
 
@@ -51,7 +51,7 @@ SGF가 없어도 학습 카드 및 로컬 질문 화면은 표시할 수 있습�
 | `src/ollama_client.py` | 로컬 Ollama `/api/chat` 스트리밍, 선택형 임베딩 API |
 | `src/rag_pipeline.py` | 기존 ChromaDB·EmbeddingGemma **선택 실험** |
 | `scripts/download_cwi_samples.py` | 앱이 호출하지 않는 독립 실행형 샘플 다운로드 유틸리티 |
-| `start_baduk.ps1` | Windows Private GitHub main 확인·안전 동기화·앱 시작 |
+| `start_baduk.ps1` | Windows GitHub main 확인·안전 동기화·앱 시작 |
 
 ## 3. SGF와 CWI 입력 경계
 
@@ -92,6 +92,6 @@ Ollama 기본 접속지는 **`http://127.0.0.1:11434`**입니다. 유료 외부 
 
 ## 7. 로컬 보안과 검증
 
-GitHub는 **Private**이며 `.gitignore`에서 SGF 다운로드, PC별 설정, ChromaDB 파일, 분석 로그와 신경망 가중치 등을 제외합니다. 원본 기보는 해당 사이트의 권리·이용 조건을 확인해야 합니다.
+GitHub는 **Public**이며 `.gitignore`에서 SGF 다운로드, PC별 설정, ChromaDB 파일, 분석 로그와 신경망 가중치 등을 제외합니다. 이미 Git에 커밋된 파일과 과거 기록은 `.gitignore`로 숨겨지지 않으므로 공개 저장소의 커밋 내역도 별도로 점검해야 합니다. 원본 기보는 해당 사이트의 권리·이용 조건을 확인해야 합니다.
 
 `tests/`는 파일 파싱·원격 URL 검증·바둑판 마커·복기·KataGo 요청·학습 카드·질문 프롬프트 등을 테스트하고, 일부 테스트는 가짜 KataGo·Ollama를 사용합니다. **Windows에서의 전체 사용자 인터페이스·외부 HTTPS·실제 엔진/모델 응답은 최신 코드 기준 미검증**입니다. 현재 상태와 다음 점검은 [개발 기록](DEVELOPMENT_LOG.md)에 정리합니다.
