@@ -34,7 +34,7 @@ def test_chat_payload(monkeypatch):
     def mock_post(endpoint, payload, timeout=120):
         assert endpoint == "/api/chat"
         assert payload["stream"] is False
-        assert payload["model"] == "qwen3:4b-instruct"
+        assert payload["model"] == "qwen3:1.7b"
         return {"message": {"role": "assistant", "content": "두 돌이 연결됩니다."}}
     monkeypatch.setattr(ollama_client, "_post", mock_post)
     assert "연결" in ollama_client.chat([{"role": "user", "content": "연결이란?"}])
