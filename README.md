@@ -1,8 +1,8 @@
 # Baduk Insight
 
-**개인 프로젝트 | KataGo·Ollama 기반 바둑 복기 학습**
+**개인이 직접 기획·개발한 프로젝트 | AI 바둑 복기·학습**
 
-Baduk Insight는 **오청원(Go Seigen)의 프로 대국 기보**를 한 수씩 살펴보며 바둑을 공부하기 위해 개발한 **Python·Streamlit 대시보드**입니다. KataGo로 착수 직전 국면과 AI 추천 수를 비교하고, 16개의 바둑 개념 노트를 읽거나 Ollama에 질문하며 학습할 수 있습니다.
+Baduk Insight는 **오청원(Go Seigen)의 프로 대국 기보**를 한 수씩 복기하며 착수의 의미를 공부하기 위한 **Python·Streamlit 기반 대시보드**입니다. KataGo로 실제 착수와 AI 추천 수를 비교하고, 바둑 개념 노트와 Ollama 질문 기능을 활용해 학습할 수 있도록 구현했습니다.
 
 PC에서 Streamlit을 실행한 뒤 웹 브라우저로 이용합니다.
 
