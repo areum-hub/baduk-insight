@@ -5,11 +5,12 @@ Only reorganizes authored note material; never generates explanations.
 from __future__ import annotations
 
 from collections import OrderedDict
+import re
 
 CATEGORY_KEYWORDS = (
     ("기본 규칙·돌의 생사", (
         "활로", "단수", "연결", "끊", "두 눈", "두눈", "사활", "생사",
-        "빅", "공배", "libert", "connection", "eyes", "life", "death", "seki",
+        "빅", "공배", "liberty", "liberties", "connection", "eyes", "life", "death", "seki",
     )),
     ("포석·돌의 형태", (
         "포석", "정석", "귀·변", "행마", "모양", "빈삼각",
@@ -49,11 +50,27 @@ def note_answer(note: dict) -> str:
     return "\n\n".join(body)
 
 
+def _keyword_matches(keyword: str, title: str, filename: str) -> bool:
+    """Match English Go terms as words, not substrings of other terms.
+
+    "seki" is a life-and-death concept, but the filename "05_fuseki.md"
+    contains those letters and must remain in the opening (포석) category.
+    Korean keywords can still match natural compound titles.
+    """
+    term = keyword.casefold()
+    if term.isascii():
+        # ASCII letters on either side mean the term is part of a larger
+        # English word. Underscores and hyphens separate filename tokens.
+        boundary = rf"(?<![a-z]){re.escape(term)}(?![a-z])"
+        return bool(re.search(boundary, title) or re.search(boundary, filename))
+    return term in title or term in filename
+
+
 def classify_note(note: dict) -> str:
     title = note_title(note).casefold()
     filename = str(note.get("path", "")).casefold()
     for category, keywords in CATEGORY_KEYWORDS:
-        if any(word.casefold() in title or word.casefold() in filename for word in keywords):
+        if any(_keyword_matches(word, title, filename) for word in keywords):
             return category
     return OTHER_CATEGORY
 
