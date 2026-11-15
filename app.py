@@ -2,6 +2,7 @@
 import hashlib
 import json
 import time
+from html import escape
 from pathlib import Path
 
 import streamlit as st
@@ -98,6 +99,32 @@ st.markdown(
         line-height: 1.55;
         color: var(--text-color);
         opacity: .75;
+    }
+    /* Clear hierarchy for the match and KataGo sections. */
+    .bi-game-title {
+        font-size: clamp(1.95rem, 2.8vw, 2.7rem) !important;
+        font-weight: 750 !important;
+        line-height: 1.24 !important;
+        letter-spacing: -.03em;
+        margin: .3rem 0 .5rem !important;
+        overflow-wrap: anywhere;
+    }
+    .bi-analysis-title {
+        font-size: clamp(1.75rem, 2.35vw, 2.25rem) !important;
+        font-weight: 740 !important;
+        line-height: 1.25 !important;
+        letter-spacing: -.025em;
+        margin: .15rem 0 .6rem !important;
+    }
+    /* Playback controls and board share the same responsive 720px lane. */
+    .st-key-replay_workspace {
+        width: 100%;
+        max-width: 720px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    .st-key-replay_workspace [data-testid="stButton"] button {
+        width: 100%;
     }
     /* Quiet study sidebar. No duplicated logo or decorative header. */
     section[data-testid="stSidebar"] {
@@ -419,7 +446,11 @@ if st.session_state.get("game_digest") != digest:
     st.session_state.playing = False
     st.session_state.last_advance = time.monotonic()
 
-st.subheader(f"{record.black_player} (Black) vs {record.white_player} (White)")
+st.markdown(
+    f'<h2 class="bi-game-title">{escape(record.black_player)} (Black) '
+    f'vs {escape(record.white_player)} (White)</h2>',
+    unsafe_allow_html=True,
+)
 st.caption(f"{record.event} | {record.date} | {record.result} | {name}")
 # A fragment refreshes only the board while playback runs; KataGo and RAG
 # panels remain still until playback is paused. One timer tick advances one move.
@@ -445,7 +476,7 @@ def show_replay():
     current = st.session_state.move_index
     controls = st.columns(3)
     with controls[0]:
-        if st.button("⏮ 이전", disabled=current == 0, key="replay_previous"):
+        if st.button("⏮ 이전", disabled=current == 0, key="replay_previous", use_container_width=True):
             st.session_state.playing = False
             st.session_state.move_index = move_manually(current, record.move_count, -1)
             st.session_state.last_advance = time.monotonic()
@@ -453,12 +484,12 @@ def show_replay():
     with controls[1]:
         if st.button("▶ 재생" if not st.session_state.playing else "⏸ 일시정지",
                      disabled=(not st.session_state.playing and current >= record.move_count),
-                     key="replay_toggle"):
+                     key="replay_toggle", use_container_width=True):
             st.session_state.playing = not st.session_state.playing
             st.session_state.last_advance = time.monotonic()
             st.rerun()
     with controls[2]:
-        if st.button("⏭ 다음", disabled=current >= record.move_count, key="replay_next"):
+        if st.button("⏭ 다음", disabled=current >= record.move_count, key="replay_next", use_container_width=True):
             st.session_state.playing = False
             st.session_state.move_index = move_manually(current, record.move_count, 1)
             st.session_state.last_advance = time.monotonic()
@@ -506,10 +537,11 @@ def show_replay():
         st.caption("🟠 주황 테두리: 실제 착수   ·   🔵 파란 테두리: AI 추천 위치")
 
 with left:
-    show_replay()
+    with st.container(key="replay_workspace"):
+        show_replay()
 with right:
     turn = st.session_state.move_index
-    st.markdown("### AI 착수 분석")
+    st.markdown('<h2 class="bi-analysis-title">AI 착수 분석</h2>', unsafe_allow_html=True)
     st.caption(f"선택한 장면: {turn} / {record.move_count}수")
     if st.session_state.playing:
         st.caption("일시정지하면 현재 장면을 분석할 수 있습니다.")
