@@ -11,7 +11,7 @@
 | 기능 | 설명 |
 | --- | --- |
 | **SGF 기보 불러오기** | 첫 실행 시 CWI의 오청원 기보 아카이브를 자동으로 로컬에 가져와 기본 목록에 표시. 다른 SGF는 별도 업로드 또는 URL로 열기 |
-| **기보 자동 복기** | 이전·다음 수, 수순 슬라이더, 재생·일시정지 및 **2초마다 한 수** 진행 |
+| **기보 자동 복기** | 이전·다음 수, 수순 슬라이더, 재생·일시정지 및 **2초마다 한 수** 진행 (재생 중 슬라이더 상태 충돌 방지) |
 | **KataGo 착수 분석** | 선택한 수를 두기 **직전 국면**에서 흑 승률, 예상 집 차이, 추천 착수·후보 수순 확인 |
 | **AI 추천 수 표시** | 바둑판에 실제 착수(주황색)와 KataGo 추천 위치(파란색)를 구별하여 표시 |
 | **바둑 개념 학습** | 한국어 Markdown 학습 노트 **16개**를 분야별 카드로 탐색하고 원문 설명 읽기 |
@@ -48,20 +48,22 @@
 
 ### 1. 프로젝트 설치
 
-Python과 Git을 준비한 뒤 PowerShell에서 실행합니다.
+PowerShell에서 GitHub 최신 ZIP을 다운로드한 뒤 실행합니다. Git clone은 필요하지 않습니다.
 
 ```powershell
-git clone https://github.com/areum-hub/baduk-insight.git
-cd baduk-insight
-
-py -m venv .venv
+$work = "$HOME\Downloads\baduk-insight-test"
+New-Item -ItemType Directory -Force $work | Out-Null
+Invoke-WebRequest -Uri "https://github.com/areum-hub/baduk-insight/archive/refs/heads/main.zip" -OutFile "$work\baduk-insight.zip"
+Expand-Archive -Path "$work\baduk-insight.zip" -DestinationPath $work -Force
+Set-Location "$work\baduk-insight-main"
+if (-not (Test-Path ".\.venv\Scripts\python.exe")) { py -m venv .venv }
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe -m streamlit run app.py
 ```
 
 브라우저에서 **http://localhost:8501**로 접속합니다.
 
-**기존 설치 사용자:** 프로젝트 폴더에서 `git pull --ff-only origin main`으로 최신 코드를 받은 뒤 Streamlit을 재시작합니다. 로컬에 수정한 파일이 있다면 먼저 확인하고, 강제 초기화하지 마세요.
+**기존 설치 사용자:** Streamlit 종료 후 최신 ZIP을 같은 작업 폴더에 덮어 풀고 다시 실행합니다. 로컬 `.venv/`, `data/sgf/go_seigen/`은 유지되지만 제거된 파일은 로컬에 남을 수 있습니다.
 
 ### 2. 기보 복기
 
@@ -128,11 +130,10 @@ baduk-insight/
 │   └── rag_pipeline.py            # 선택형 ChromaDB 실험
 ├── knowledge/                      # 바둑 개념 학습 노트 16개
 ├── configs/                        # KataGo 분석 설정
-├── scripts/                        # 선택형 SGF 다운로드 도구
 ├── tests/                          # pytest 테스트
 ├── docs/                           # 설치·구조·개발 기록
 ├── requirements.txt
-└── start_baduk.ps1                 # Windows 실행 스크립트
+└── README.md                       # 프로젝트 안내
 ```
 
 ## 테스트 및 현재 한계
@@ -141,7 +142,7 @@ baduk-insight/
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-단위 테스트에는 **KataGo·Ollama의 모의 응답**을 사용하는 항목이 포함됩니다. **최신 UI의 Windows 브라우저 동작, 오청원 TGZ 자동 다운로드, CWI HTTPS 연결, 실제 KataGo 분석과 Qwen3 응답 속도는 환경별 통합 검증이 필요**합니다. 검증하지 않은 사항을 완료된 기능처럼 표시하지 않습니다.
+단위 테스트에는 **KataGo·Ollama의 모의 응답**을 사용하는 항목이 포함됩니다. **최신 UI의 Windows 브라우저 재생·일시정지·슬라이더 동작, 오청원 TGZ 자동 다운로드, CWI HTTPS 연결, 실제 KataGo 분석과 Qwen3 응답 속도는 환경별 통합 검증이 필요**합니다. 검증하지 않은 사항을 완료된 기능처럼 표시하지 않습니다.
 
 이 프로젝트는 전문 SGF 편집기나 경기 결과 예측 서비스가 아닙니다. 착수별 승률 손실 자동 판정, 개인 학습 기록·북마크의 영구 저장 기능은 현재 구현하지 않았습니다.
 
