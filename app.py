@@ -225,8 +225,29 @@ with st.sidebar:
                 except (OSError, ValueError) as exc:
                     st.error(f"설정 저장 실패: {exc}")
 
+def show_study_guide():
+    st.markdown("### 바둑 개념 학습")
+    st.caption("학습할 분야를 선택하면 준비된 설명이 바로 나타납니다. 질문을 입력하거나 답변을 기다릴 필요가 없습니다.")
+    try:
+        study_groups = grouped_study_notes(load_notes())
+        if not study_groups:
+            st.info("표시할 바둑 학습 노트가 없습니다.")
+        else:
+            study_tabs = st.tabs(list(study_groups))
+            for study_tab, (category, lessons) in zip(study_tabs, study_groups.items()):
+                with study_tab:
+                    st.caption(f"{category} · {len(lessons)}개 학습 주제")
+                    for lesson in lessons:
+                        with st.container(border=True):
+                            st.markdown(f"#### {note_title(lesson)}")
+                            st.markdown(note_answer(lesson))
+    except (ValueError, OSError) as exc:
+        st.error(f"바둑 학습 노트를 불러오지 못했습니다: {exc}")
+
+
 if raw is None:
-    st.info("왼쪽에서 CWI 원본 기보를 선택하거나 SGF 파일을 업로드해 주세요.")
+    st.info("기보를 선택하지 않아도 아래 바둑 개념 학습 자료를 읽을 수 있습니다.")
+    show_study_guide()
     st.stop()
 
 try:
@@ -490,20 +511,4 @@ with right:
                     st.warning("후보 수가 반환되지 않았습니다.")
 
     st.divider()
-    st.markdown("### 바둑 개념 학습")
-    st.caption("학습할 분야를 선택하면 준비된 설명이 바로 나타납니다. 질문을 입력하거나 답변을 기다릴 필요가 없습니다.")
-    try:
-        study_groups = grouped_study_notes(load_notes())
-        if not study_groups:
-            st.info("표시할 바둑 학습 노트가 없습니다.")
-        else:
-            study_tabs = st.tabs(list(study_groups))
-            for study_tab, (category, lessons) in zip(study_tabs, study_groups.items()):
-                with study_tab:
-                    st.caption(f"{category} · {len(lessons)}개 학습 주제")
-                    for lesson in lessons:
-                        with st.container(border=True):
-                            st.markdown(f"#### {note_title(lesson)}")
-                            st.markdown(note_answer(lesson))
-    except (ValueError, OSError) as exc:
-        st.error(f"바둑 학습 노트를 불러오지 못했습니다: {exc}")
+    show_study_guide()
