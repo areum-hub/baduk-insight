@@ -1,13 +1,12 @@
 """CWI SGF source URL security checks and file parsing tests."""
 import pytest
 
-from src.cwi_source import CWI_CHOICES, fetch_cwi_sgf, validate_cwi_url
+from src.cwi_source import fetch_cwi_sgf, validate_cwi_url
 
 
-def test_curated_cwi_links_are_allowed():
-    assert len(CWI_CHOICES) == 3
-    for url in CWI_CHOICES.values():
-        assert validate_cwi_url(url) == url
+def test_direct_cwi_sgf_link_is_allowed():
+    url = "https://homepages.cwi.nl/~aeb/go/games/games/AlphaGo/LeeSedol/1.sgf"
+    assert validate_cwi_url(url) == url
 
 
 @pytest.mark.parametrize("url", [
@@ -40,7 +39,7 @@ def test_fetch_small_sgf_without_disk_write(monkeypatch):
             return DummyResponse()
 
     monkeypatch.setattr("src.cwi_source.build_opener", lambda *args: DummyOpener())
-    raw, name = fetch_cwi_sgf(CWI_CHOICES["이세돌 vs 알파고 · 제1국 (2016-03-09)"])
+    raw, name = fetch_cwi_sgf("https://homepages.cwi.nl/~aeb/go/games/games/AlphaGo/LeeSedol/1.sgf")
     assert raw.startswith(b"(;")
     assert name == "1.sgf"
 
@@ -60,4 +59,4 @@ def test_fetch_rejects_html_response(monkeypatch):
 
     monkeypatch.setattr("src.cwi_source.build_opener", lambda *args: DummyOpener())
     with pytest.raises(ValueError, match="SGF"):
-        fetch_cwi_sgf(next(iter(CWI_CHOICES.values())))
+        fetch_cwi_sgf("https://homepages.cwi.nl/~aeb/go/games/games/AlphaGo/LeeSedol/1.sgf")
