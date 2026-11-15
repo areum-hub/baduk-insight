@@ -45,3 +45,9 @@ def test_study_chat_is_scoped_to_study_workspace():
 def test_autoplay_refreshes_only_while_playing():
     assert '@st.fragment(run_every="0.5s" if st.session_state.playing else None)' in APP_SOURCE
     assert "PLAYBACK_SECONDS = 2" in APP_SOURCE
+
+
+def test_match_header_uses_parsed_sgf_metadata_not_filename():
+    assert "format_game_title(record.black_player, record.white_player)" in APP_SOURCE
+    assert "record.event, record.date, record.place, record.result" in APP_SOURCE
+    assert 'st.caption(f"{record.event} | {record.date} | {record.result} | {name}")' not in APP_SOURCE
