@@ -529,10 +529,15 @@ left, right = st.columns([65, 35], gap="medium")
 @st.fragment(run_every="0.25s")
 def show_replay():
     if st.session_state.pop("replay_full_refresh", False):
-        st.rerun()
-    # Handle user actions before the timer tick. Streamlit callbacks execute
-    # before the fragment rerun, so pause/resume cannot advance a move first.
+        # Refresh the entire page, not only the playback fragment. The KataGo
+        # button lives in the right column outside this fragment and would
+        # otherwise stay disabled after clicking Pause.
+        st.rerun(scope="app")
+
     def on_toggle_playback():
+        # A widget callback runs before the next fragment evaluation.
+        # Reset the 2-second clock and request a full rerun so the AI panel
+        # immediately sees the new playing state and current move index.
         playing, anchor = toggle_playback(
             st.session_state.playing,
             st.session_state.move_index,
@@ -541,6 +546,7 @@ def show_replay():
         )
         st.session_state.playing = playing
         st.session_state.last_advance = anchor
+        st.session_state.replay_full_refresh = True
 
     current = st.session_state.move_index
     if st.session_state.playing:
