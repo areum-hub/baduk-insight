@@ -451,8 +451,6 @@ with analysis_sidebar_card:
             st.caption(f"기보에 기록된 덤: {recorded_komi}집")
         else:
             st.caption("기보에 덤 기록이 없어 임시 기본값을 사용합니다.")
-    rule_name = "중국식" if rules == "chinese" else "일본식"
-    note = " · 기보 규칙 미확인" if not sgf_rules else ""
 
 
 
@@ -462,13 +460,10 @@ if st.session_state.get("game_digest") != digest:
     st.session_state.move_index = 0
     st.session_state.analysis_result = None
     st.session_state.analysis_key = None
-    st.session_state.rag_messages = []
-    st.session_state.rag_scene = None
     st.session_state.playing = False
     st.session_state.last_advance = time.monotonic()
 
-# A fragment refreshes only the board while playback runs; KataGo and RAG
-# panels remain still until playback is paused. One timer tick advances one move.
+# A fragment refreshes the replay only; KataGo and study workspace run separately.
 left, right = st.columns([65, 35], gap="medium")
 
 @st.fragment(run_every="0.25s")
