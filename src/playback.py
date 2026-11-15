@@ -24,7 +24,15 @@ def advance(
     if now - last_advance_time < seconds_per_move:
         return current_move, last_advance_time, True
     next_move = current_move + 1
-    return next_move, now, next_move < last_move
+    # Preserve the nominal cadence after small UI/rendering delays: a tick
+    # observed at 2.3 s still belongs to the 2.0 s boundary, so the next
+    # position is due around 4.0 s rather than 4.3 s.
+    next_anchor = last_advance_time + seconds_per_move
+    # After a major stall (e.g. background tab or expensive rendering),
+    # restart from 'now' rather than advancing moves in a rapid burst.
+    if now - next_anchor >= seconds_per_move / 2:
+        next_anchor = now
+    return next_move, next_anchor, next_move < last_move
 
 
 def move_manually(current_move: int, last_move: int, offset: int) -> int:
