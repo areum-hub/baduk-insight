@@ -2,7 +2,7 @@
 
 [README](../README.md) · [Windows 실행](SETUP_WINDOWS.md) · [시스템 구조](ARCHITECTURE.md)
 
-**기준일: 2026-11-15 · Private GitHub `main`**
+**기준일: 2026-11-15 · Public GitHub `main`**
 
 이 문서는 **현재 구현된 코드**, **과거 개발 결정**, **아직 실행 확인이 필요한 항목**을 구분합니다. GitHub에 반영된 것과 Windows PC에서 실행 검증한 것은 다릅니다.
 
@@ -20,7 +20,7 @@
 | 학습 | Markdown **16개**, 분야 선택형 전체 너비 카드 | 검색 답변만 제공하던 화면은 제거 |
 | 질문 | 카드 아래 독립 제목 없이 `st.chat_input`; 로컬 `qwen3:1.7b` 스트리밍 | 별도 4B RAG 생성 경로는 선택 실험 모듈에만 보존 |
 | 색인 | ChromaDB 색인 관리 메뉴는 접혀 있고 선택 실행 | `embeddinggemma-2:270m` |
-| PC 실행 | `start_baduk.ps1` 또는 명령으로 Private GitHub main 동기화 | GitHub 인증 실패 시 소스 동기화 불가 |
+| PC 실행 | `start_baduk.ps1` 또는 명령으로 Public GitHub main 동기화 | Git 또는 네트워크 오류 시 동기화 불가 |
 
 ## 3. 2026-11-15 UI 최종 결정
 
@@ -47,7 +47,7 @@
 
 | 확인 대상 | 현재 소스 상태 | 실제 Windows 최신 통합 검증 |
 | --- | --- | --- |
-| Private GitHub main 파일 최신화 | 코드와 문서 업데이트 | GitHub 원격 파일 확인 |
+| Public GitHub main 파일 최신화 | 코드와 문서 업데이트 | GitHub 원격 파일 확인 |
 | SGF 로딩·19줄 바둑판 | 구현 | **이전 버전에서** 사용자가 화면 확인 |
 | 2초 자동 복기와 수순 슬라이더 | 구현 | 필요 |
 | 사이드바 접힘·3개 카드·Material Symbols | 코드 수정 | 필요 |
@@ -63,7 +63,7 @@
 
 ## 6. Windows 최종 확인 순서
 
-1. Private 저장소 `main`에 접근 가능한지 확인하고 `git pull --ff-only origin main` 실행
+1. 공개 저장소 `main`의 원격 주소를 확인하고 `git pull --ff-only origin main` 실행
 2. `.venv\Scripts\python.exe -m pytest -q`로 단위 테스트
 3. Streamlit 재시작 후 **사이드바 아이콘이 문자로 보이지 않는지** 및 폰트 크기·바둑판 정렬 확인
 4. SGF 불러오기 → 이전/재생·일시정지/다음·슬라이더를 이용해 2초 재생 확인
@@ -76,6 +76,6 @@ Windows 기기 또는 브라우저에서 실제 확인 전에는 검증 완료�
 
 ## 7. 보안·제한
 
-프로젝트는 **Private**이며 다운로드 SGF, KataGo 모델·실행 파일, `data/local/` 설정, `data/chroma/` 색인은 Git 관리 대상에서 제외합니다. 로컬 모델은 사용량당 외부 API 요금이 없지만 응답 품질 및 속도를 보장하지 않습니다. 특정 국면의 최선 수·승률·프로기사 의도는 생성형 설명으로 확정하지 않습니다.
+프로젝트는 **Public**이며 다운로드 SGF, KataGo 모델·실행 파일, `data/local/` 설정, `data/chroma/` 색인은 Git 관리 대상에서 제외합니다. 과거에 커밋된 파일은 `.gitignore`로 숨길 수 없으므로 공개 이력을 별도로 점검해야 합니다. 로컬 모델은 사용량당 외부 API 요금이 없지만 응답 품질 및 속도를 보장하지 않습니다. 특정 국면의 최선 수·승률·프로기사 의도는 생성형 설명으로 확정하지 않습니다.
 
 원본 SGF와 외부 해설 저작권·사용 조건을 확인해야 합니다. 자세한 실행 절차는 [Windows 가이드](SETUP_WINDOWS.md)를 참고하세요.
