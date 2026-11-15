@@ -12,6 +12,7 @@ class GameRecord:
     result: str
     setup_board: object
     moves: list
+    place: str = ""  # SGF PC: recorded location; absent values stay empty.
 
     @property
     def move_count(self) -> int:
@@ -23,13 +24,13 @@ def load_sgf(raw: bytes) -> GameRecord:
     root = game.get_root()
     def prop(name: str) -> str:
         if not root.has_property(name):
-            return "Unknown"
+            return ""
         value = root.get(name)
-        return str(value) if value is not None else "Unknown"
+        return str(value) if value is not None else ""
     return GameRecord(
         size=game.get_size(), black_player=prop("PB"), white_player=prop("PW"),
         date=prop("DT"), event=prop("EV"), result=prop("RE"),
-        setup_board=board, moves=moves
+        setup_board=board, moves=moves, place=prop("PC")
     )
 
 def replay(record: GameRecord, move_index: int):
