@@ -560,7 +560,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 match_details = format_game_details(
-    record.event, record.date, sgf_property("PC"), record.result
+    record.event, record.date, record.place, record.result
 )
 if match_details:
     st.caption(match_details)
