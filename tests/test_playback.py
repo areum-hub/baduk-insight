@@ -58,3 +58,24 @@ def test_autoplay_slider_key_tracks_displayed_position():
     assert seek_widget_key("abcdef1234567890", 10) != seek_widget_key(digest, 10)
     with pytest.raises(ValueError):
         seek_widget_key(digest, -1)
+
+
+def test_small_timer_jitter_does_not_accumulate_across_moves():
+    # 0.35s late: keep the 2-second schedule rather than drifting to 2.35s.
+    index, anchor, playing = advance(0, 10, 0.0, 2.35, 2)
+    assert (index, anchor, playing) == (1, 2.0, True)
+    assert advance(index, 10, anchor, 3.99, 2) == (1, 2.0, True)
+    assert advance(index, 10, anchor, 4.0, 2) == (2, 4.0, True)
+
+
+def test_long_timer_stall_reanchors_without_skipping_or_rapid_catchup():
+    # The 2-second interval is badly delayed; never show several moves at once.
+    index, anchor, playing = advance(0, 10, 0.0, 3.4, 2)
+    assert (index, anchor, playing) == (1, 3.4, True)
+    assert advance(index, 10, anchor, 4.0, 2) == (1, 3.4, True)
+    assert advance(index, 10, anchor, 5.4, 2) == (2, 5.4, True)
+
+
+def test_playback_initial_position_does_not_advance_before_two_seconds():
+    assert advance(0, 120, 42.0, 43.99, 2) == (0, 42.0, True)
+    assert advance(0, 120, 42.0, 44.0, 2) == (1, 44.0, True)
