@@ -467,12 +467,6 @@ if st.session_state.get("game_digest") != digest:
     st.session_state.playing = False
     st.session_state.last_advance = time.monotonic()
 
-st.markdown(
-    f'<h2 class="bi-game-title">{escape(record.black_player)} (Black) '
-    f'vs {escape(record.white_player)} (White)</h2>',
-    unsafe_allow_html=True,
-)
-st.caption(f"{record.event} | {record.date} | {record.result} | {name}")
 # A fragment refreshes only the board while playback runs; KataGo and RAG
 # panels remain still until playback is paused. One timer tick advances one move.
 left, right = st.columns([65, 35], gap="medium")
@@ -559,6 +553,12 @@ def show_replay():
 
 with left:
     with st.container(key="replay_workspace"):
+        st.markdown(
+            f'<h2 class="bi-game-title">{escape(record.black_player)} (Black) '
+            f'vs {escape(record.white_player)} (White)</h2>',
+            unsafe_allow_html=True,
+        )
+        st.caption(f"{record.event} | {record.date} | {record.result} | {name}")
         show_replay()
 with right:
     turn = st.session_state.move_index
