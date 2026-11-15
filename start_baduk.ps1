@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Safely sync the local Baduk Insight checkout with the private GitHub main branch,
+Safely sync the local Baduk Insight checkout with the public GitHub main branch,
 install Python dependencies, and start Streamlit.
 
 This only pulls Git-tracked source code. SGF records, ChromaDB data, Ollama
