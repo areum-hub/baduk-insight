@@ -136,8 +136,6 @@ with st.sidebar:
         raw = None
         name = ""
         if source == "Upload SGF":
-            st.markdown("**CWI 원본 기보 연결**")
-            st.caption("CWI 원본을 앱에서 바로 열거나, 내 컴퓨터의 SGF 파일을 업로드하세요.")
             st.link_button(
                 "CWI 전체 기보 목록 보기", ARCHIVE_URL,
                 use_container_width=True,
@@ -162,7 +160,6 @@ with st.sidebar:
                     ).strip()
                 else:
                     cwi_url = CWI_CHOICES[selection]
-                    st.caption("선택한 CWI SGF 원본 파일을 직접 불러옵니다.")
                 if st.button("이 기보로 복기 시작", key="cwi_open_game", disabled=not cwi_url):
                     try:
                         fetched_raw, fetched_name = fetch_cwi_sgf(cwi_url)
@@ -195,7 +192,7 @@ with st.sidebar:
     analysis_sidebar_card = st.container(border=True)
     with analysis_sidebar_card:
         st.subheader("02 · AI 착수 분석")
-        st.caption("필요한 착수에서만 AI 분석을 실행합니다.")
+
         try:
             katago_preferences = resolved_settings(PROJECT, LOCAL_KATAGO_SETTINGS)
         except ValueError as exc:
@@ -227,23 +224,40 @@ with st.sidebar:
 
 def show_study_guide():
     st.markdown("### 바둑 개념 학습")
-    st.caption("학습할 분야를 선택하면 준비된 설명이 바로 나타납니다. 질문을 입력하거나 답변을 기다릴 필요가 없습니다.")
+    st.caption("분야와 학습 카드를 선택하면 해당 설명을 읽을 수 있습니다.")
     try:
         study_groups = grouped_study_notes(load_notes())
         if not study_groups:
             st.info("표시할 바둑 학습 노트가 없습니다.")
+            return
+        selected_category = st.selectbox(
+            "학습 분야", list(study_groups),
+            key="study_category", label_visibility="collapsed",
+        )
+        lessons = study_groups[selected_category]
+        st.caption(f"{selected_category} · {len(lessons)}개 주제")
+        tiles = st.columns(2)
+        for i, lesson in enumerate(lessons):
+            with tiles[i % 2]:
+                if st.button(
+                    note_title(lesson),
+                    key="lesson_card_" + lesson["path"],
+                    use_container_width=True,
+                    type="primary" if st.session_state.get("selected_lesson") == lesson["path"] else "secondary",
+                ):
+                    st.session_state["selected_lesson"] = lesson["path"]
+        selected_note = next(
+            (n for n in lessons if n["path"] == st.session_state.get("selected_lesson")),
+            None,
+        )
+        if selected_note is None:
+            st.info("읽고 싶은 학습 카드를 선택하세요.")
         else:
-            study_tabs = st.tabs(list(study_groups))
-            for study_tab, (category, lessons) in zip(study_tabs, study_groups.items()):
-                with study_tab:
-                    st.caption(f"{category} · {len(lessons)}개 학습 주제")
-                    for lesson in lessons:
-                        with st.container(border=True):
-                            st.markdown(f"#### {note_title(lesson)}")
-                            st.markdown(note_answer(lesson))
+            with st.container(border=True):
+                st.markdown(f"#### {note_title(selected_note)}")
+                st.markdown(note_answer(selected_note))
     except (ValueError, OSError) as exc:
         st.error(f"바둑 학습 노트를 불러오지 못했습니다: {exc}")
-
 
 if raw is None:
     st.info("기보를 선택하지 않아도 아래 바둑 개념 학습 자료를 읽을 수 있습니다.")
@@ -312,40 +326,25 @@ with analysis_sidebar_card:
 
 with st.sidebar:
     with st.container(border=True):
-        st.subheader("03 · AI 학습 자료")
+        st.subheader("03 · 학습 자료")
         try:
             source_notes = load_notes()
             source_count = len(source_notes)
-            index_count = get_collection().count()
-            st.metric("보유한 바둑 학습 노트", f"{source_count}개")
-            # Only a short list to help people ask the chat about available concepts.
-            if source_notes:
-                topic_names = [
-                    next(
-                        (line[2:].strip() for line in note["text"].splitlines()
-                         if line.startswith("# ")),
-                        note["title"],
-                    )
-                    for note in source_notes
-                ]
-                st.caption("질문해 볼 주제 · " + " · ".join(topic_names[:8]))
-
-            st.caption(f"AI 검색에 등록된 문서: {index_count}개")
-            if index_count != source_count:
-                st.info("학습 노트와 검색 데이터의 개수가 다릅니다. 아래에서 동기화해 주세요.")
-            else:
-                st.caption("학습 자료와 검색 색인의 문서 수가 일치합니다.")
-            with st.expander("학습 자료 관리", expanded=index_count != source_count):
-                if st.button("AI 검색 자료 동기화", key="refresh_knowledge", use_container_width=True):
+            st.caption(f"바둑 개념 노트 {source_count}개")
+            st.caption("학습 카드에서 분야별 설명을 선택하세요.")
+            with st.expander("검색 색인 관리 · 선택", expanded=False):
+                index_count = get_collection().count()
+                st.caption(f"기존 RAG 실습 색인 {index_count}개 / 원본 노트 {source_count}개")
+                if st.button("검색 자료 동기화", key="refresh_knowledge", use_container_width=True):
                     try:
-                        with st.spinner("학습 자료를 검색용으로 등록하는 중..."):
+                        with st.spinner("검색 색인을 갱신하는 중..."):
                             indexed = build_index(source_notes)
                         st.success(f"{indexed}개 문서 등록 완료")
                         st.rerun()
                     except (OllamaError, ValueError, RuntimeError, OSError) as exc:
-                        st.error(f"자료 등록 실패: {exc}")
+                        st.error(f"색인 갱신 실패: {exc}")
         except (OSError, RuntimeError, ValueError) as exc:
-            st.error(f"학습 자료 상태를 확인하지 못했습니다: {exc}")
+            st.error(f"학습 자료를 읽지 못했습니다: {exc}")
 
 digest = hashlib.sha256(raw).hexdigest()
 if st.session_state.get("game_digest") != digest:
