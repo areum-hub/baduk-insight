@@ -1,7 +1,7 @@
 """Tests for SGF autoplay timing and manual navigation."""
 import pytest
 
-from src.playback import advance, move_manually
+from src.playback import advance, move_manually, toggle_playback
 
 
 def test_one_move_at_each_configured_speed():
@@ -34,3 +34,18 @@ def test_invalid_playback_inputs():
         advance(0, 10, 0.0, 1.0, 4)
     with pytest.raises(ValueError):
         advance(-1, 10, 0.0, 1.0, 1)
+
+
+def test_pause_does_not_advance_and_resume_starts_fresh_two_second_interval():
+    current = 17
+    playing, anchor = toggle_playback(True, current, 250, 100.0)
+    assert (playing, anchor) == (False, 100.0)
+    # Waiting while paused does not count toward the next move.
+    playing, anchor = toggle_playback(playing, current, 250, 120.0)
+    assert (playing, anchor) == (True, 120.0)
+    assert advance(current, 250, anchor, 121.99, 2) == (current, anchor, True)
+    assert advance(current, 250, anchor, 122.0, 2) == (current + 1, 122.0, True)
+
+
+def test_resume_at_last_move_remains_stopped():
+    assert toggle_playback(False, 250, 250, 22.0) == (False, 22.0)
