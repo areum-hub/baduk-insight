@@ -546,5 +546,6 @@ with right:
                 else:
                     st.warning("후보 수가 반환되지 않았습니다.")
 
-    st.divider()
-    show_study_guide()
+# Full-width learning workspace below the 65/35 replay and KataGo columns.
+st.divider()
+show_study_guide()
