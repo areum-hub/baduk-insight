@@ -1,4 +1,4 @@
-"""Local Ollama client for EmbeddingGemma 2 embeddings and Qwen chat.
+"""Local Ollama client for optional embeddings and lightweight Qwen chat.
 
 All calls stay on the user's loopback interface. No remote AI API is used.
 """
@@ -10,7 +10,7 @@ from urllib.request import Request, urlopen
 
 OLLAMA_BASE = "http://127.0.0.1:11434"
 EMBEDDING_MODEL = "embeddinggemma-2:270m"
-CHAT_MODEL = "qwen3:4b-instruct"
+CHAT_MODEL = "qwen3:1.7b"
 
 
 class OllamaError(RuntimeError):
