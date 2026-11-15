@@ -9,7 +9,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 from sgfmill import sgf
 
-from src.cwi_source import ARCHIVE_URL, CWI_CHOICES, fetch_cwi_sgf
+from src.cwi_source import ARCHIVE_URL, fetch_cwi_sgf
 from src.go_seigen_source import (
     GO_SEIGEN_ARCHIVE_URL, import_go_seigen, import_go_seigen_archive,
     local_go_seigen_games,
@@ -18,7 +18,7 @@ from src.board_svg import render_board
 from src.katago_client import KataGoError, build_query, gtp_coord, run_analysis, top_candidates
 from src.local_settings import resolved_settings, save_settings, suggested_paths
 from src.sgf_service import load_sgf, replay
-from src.playback import advance, move_manually, toggle_playback
+from src.playback import advance, move_manually, seek_widget_key, toggle_playback
 from src.ollama_client import OllamaError, chat_stream
 from src.study_chat import LOCAL_CHAT_MODEL, build_study_chat_messages
 from src.rag_pipeline import build_index, get_collection, load_notes
@@ -577,15 +577,21 @@ def show_replay():
             st.session_state.move_index = move_manually(current, record.move_count, 1)
             st.session_state.last_advance = time.monotonic()
             st.rerun()
-    # Use a temporary slider key to keep widget state synchronized with timer changes.
+    # Do not mutate the Session State of an already-instantiated slider.
+    # Each displayed position receives an independent widget key. The
+    # callback reads the user's input before the fragment timer runs again.
+    seek_key = seek_widget_key(digest, current)
+
     def on_seek():
         st.session_state.playing = False
-        st.session_state.move_index = st.session_state.replay_seek
+        st.session_state.move_index = int(st.session_state[seek_key])
         st.session_state.last_advance = time.monotonic()
+        # Re-render the parent layout too, to synchronize the AI panel.
         st.session_state.replay_full_refresh = True
-    st.session_state.replay_seek = st.session_state.move_index
+
     st.slider(
-        "Move", 0, record.move_count, key="replay_seek", on_change=on_seek,
+        "Move", min_value=0, max_value=record.move_count,
+        value=current, key=seek_key, on_change=on_seek,
         help="슬라이더를 움직이면 자동 재생이 멈추고 선택한 수로 이동합니다.",
     )
     current = st.session_state.move_index
