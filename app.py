@@ -192,6 +192,23 @@ st.markdown(
     section[data-testid="stSidebar"] [data-baseweb="select"] > div {
         border-radius: 10px;
     }
+    /* Keep the chat composer floating without covering the last study cards
+       or chat messages when the page is scrolled all the way down. */
+    section[data-testid="stMain"] [data-testid="stMainBlockContainer"] {
+        padding-bottom: 10rem !important;
+    }
+    /* A narrower, centered composer leaves the board/study content visible
+       at the sides on desktop while remaining responsive on mobile. */
+    [data-testid="stBottomBlockContainer"] {
+        width: calc(100% - 2rem) !important;
+        max-width: 880px !important;
+        margin-inline: auto !important;
+    }
+    @media (max-width: 640px) {
+        [data-testid="stBottomBlockContainer"] {
+            width: calc(100% - 1rem) !important;
+        }
+    }
     </style>
     <div class="bi-brand-header">
         <span class="bi-stones" aria-hidden="true">
