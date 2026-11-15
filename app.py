@@ -18,7 +18,7 @@ from src.board_svg import render_board
 from src.katago_client import KataGoError, build_query, gtp_coord, run_analysis, top_candidates
 from src.local_settings import resolved_settings, save_settings, suggested_paths
 from src.sgf_service import load_sgf, replay
-from src.playback import advance, move_manually
+from src.playback import advance, move_manually, toggle_playback
 from src.ollama_client import OllamaError, chat_stream
 from src.study_chat import LOCAL_CHAT_MODEL, build_study_chat_messages
 from src.rag_pipeline import build_index, get_collection, load_notes
@@ -506,6 +506,18 @@ left, right = st.columns([65, 35], gap="medium")
 def show_replay():
     if st.session_state.pop("replay_full_refresh", False):
         st.rerun()
+    # Handle user actions before the timer tick. Streamlit callbacks execute
+    # before the fragment rerun, so pause/resume cannot advance a move first.
+    def on_toggle_playback():
+        playing, anchor = toggle_playback(
+            st.session_state.playing,
+            st.session_state.move_index,
+            record.move_count,
+            time.monotonic(),
+        )
+        st.session_state.playing = playing
+        st.session_state.last_advance = anchor
+
     current = st.session_state.move_index
     if st.session_state.playing:
         new_index, new_anchor, still_playing = advance(
@@ -528,12 +540,13 @@ def show_replay():
             st.session_state.last_advance = time.monotonic()
             st.rerun()
     with controls[1]:
-        if st.button("▶ 재생" if not st.session_state.playing else "⏸ 일시정지",
-                     disabled=(not st.session_state.playing and current >= record.move_count),
-                     key="replay_toggle", use_container_width=True):
-            st.session_state.playing = not st.session_state.playing
-            st.session_state.last_advance = time.monotonic()
-            st.rerun()
+        st.button(
+            "▶ 재생" if not st.session_state.playing else "⏸ 일시정지",
+            disabled=(not st.session_state.playing and current >= record.move_count),
+            key="replay_toggle",
+            on_click=on_toggle_playback,
+            use_container_width=True,
+        )
     with controls[2]:
         if st.button("⏭ 다음", disabled=current >= record.move_count, key="replay_next", use_container_width=True):
             st.session_state.playing = False
