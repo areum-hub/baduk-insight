@@ -16,6 +16,7 @@ from src.board_svg import render_board
 from src.katago_client import KataGoError, build_query, gtp_coord, run_analysis, top_candidates
 from src.local_settings import resolved_settings, save_settings, suggested_paths
 from src.sgf_service import load_sgf, replay
+from src.game_metadata import format_game_title, format_game_details
 from src.playback import advance, move_manually, seek_widget_key, toggle_playback
 from src.ollama_client import OllamaError, chat_stream
 from src.study_chat import LOCAL_CHAT_MODEL, build_study_chat_messages
@@ -555,11 +556,14 @@ if st.session_state.get("game_digest") != digest:
 # The replay timer is active only while playing, so paused study clicks do
 # not trigger unnecessary fragment refreshes.
 st.markdown(
-    f'<h2 class="bi-game-title">{escape(record.black_player)} (Black) '
-    f'vs {escape(record.white_player)} (White)</h2>',
+    f'<h2 class="bi-game-title">{escape(format_game_title(record.black_player, record.white_player))}</h2>',
     unsafe_allow_html=True,
 )
-st.caption(f"{record.event} | {record.date} | {record.result} | {name}")
+match_details = format_game_details(
+    record.event, record.date, sgf_property("PC"), record.result
+)
+if match_details:
+    st.caption(match_details)
 left, right = st.columns([62, 38], gap="large")
 
 @st.fragment(run_every="0.5s" if st.session_state.playing else None)
