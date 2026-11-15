@@ -32,7 +32,7 @@ def cached_katago_analysis(query_json: str, binary_path: str, model_path: str, c
     return run_analysis(json.loads(query_json), binary_path, model_path, config_path, timeout_seconds=180)
 
 
-st.set_page_config(page_title="Baduk Insight", page_icon="⚫", layout="wide")
+st.set_page_config(page_title="Baduk Insight", page_icon="⚫", layout="wide", initial_sidebar_state="collapsed")
 st.markdown(
     """
     <style>
@@ -398,7 +398,7 @@ st.subheader(f"{record.black_player} (Black) vs {record.white_player} (White)")
 st.caption(f"{record.event} | {record.date} | {record.result} | {name}")
 # A fragment refreshes only the board while playback runs; KataGo and RAG
 # panels remain still until playback is paused. One timer tick advances one move.
-left, right = st.columns([1.45, 1])
+left, right = st.columns([65, 35], gap="medium")
 
 @st.fragment(run_every="0.25s")
 def show_replay():
@@ -460,7 +460,7 @@ def show_replay():
         st.session_state.playing = False
         st.error(f"Could not replay move: {exc}")
         return
-    height = 625 if record.size == 19 else (510 if record.size == 13 else 410)
+    height = 750 if record.size == 19 else (630 if record.size == 13 else 510)
     current_key = (
         digest, current, rules, float(komi), visits, binary, model, config
     )
