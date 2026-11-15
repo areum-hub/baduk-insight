@@ -1,119 +1,97 @@
 # Baduk Insight — 시스템 구조와 데이터 흐름
 
-[← README](../README.md) · [Windows 실행](SETUP_WINDOWS.md) · [개발 기록](DEVELOPMENT_LOG.md)
+[README](../README.md) · [Windows 실행](SETUP_WINDOWS.md) · [개발 기록](DEVELOPMENT_LOG.md)
 
-**기준: 2026-11-14의 GitHub `main` 소스 코드.** 개인 로컬용 Streamlit 앱이며 GitHub 저장소는 **Private**입니다. 이 문서는 실제 화면에서 사용하는 경로와 보존된 실험 코드를 구분합니다.
+**기준:** 2026-11-15 · Private GitHub `main`. 이 문서는 코드에 실제 연결된 기능과 선택적으로 보존된 실험 코드를 구분합니다.
 
-## 1. 현재 사용자 흐름
+## 1. 사용자 흐름과 화면 구조
 
 ```text
- CWI 원본 HTTPS .sgf / 사용자 SGF 파일 / data/sgf/ 폴더
-                           │
-                           ▼
-                 sgfmill SGF 파싱
-                           │
-                           ▼
-            Streamlit UI ── SVG 바둑판
-                  │          └─ 2초 고정 자동 재생
-                  │
-                  ├───────── KataGo 선택형 분석
-                  │           ├─ 선택 N수의 직전 국면
-                  │           ├─ 흑 승률 / 예상 집 차이
-                  │           └─ 실제 착수(주황) / AI 추천(파랑)
-                  │
-                  └───────── 바둑 개념 학습
-                              └─ 분야 선택 및 개별 학습 카드
-                                  └─ knowledge/*.md (16개)
+CWI HTTPS SGF / 컴퓨터 SGF 업로드 / data/sgf/
+                     │
+                sgfmill 파싱
+                     │
+           Streamlit app.py 대시보드
+                     │
+     ┌───────────────┴─────────────────────┐
+     │                                     │
+왼쪽 65% · 기보 복기                  오른쪽 35% · KataGo
+SVG 바둑판 + 2초 자동 재생            선택 수 직전 국면 분석
+실제 수(주황)·AI 추천(파랑)           승률·집 차이·추천·변화도
+     └────────────────┬────────────────────┘
+                      │
+                 전체 너비 학습
+          knowledge/*.md 16개 원문 카드
+                      │
+               질문 입력 · 대화
+                      │
+          src/study_chat.py (학습 노트 검색)
+                      │
+       Ollama 로컬 qwen3:1.7b (선택 설치)
 ```
 
-**현재 학습 화면은 채팅이 아니라 분야별 선택 카드입니다.** 분야를 고르고 카드 제목을 누르면 해당 Markdown 노트 설명을 표시합니다. 이는 실제 판의 정확한 수읽기가 아닙니다.
+**초기 사이드바는 접혀 있음.** 메인 영역의 대국명·대국정보와 바둑판·재생 버튼·수순 슬라이더는 같은 최대 720px 정렬 레인을 공유합니다. 메인 제목은 축소된 Baduk Insight 헤더이며, 대국명은 작은 보조 제목입니다. UI는 Noto Sans KR 우선 적용, 아이콘 글꼴은 별도로 유지합니다.
 
-**레이아웃:** 기본 접힘 사이드바 → 상단 바둑판·복기 65% 및 KataGo 분석 35% → 하단 전체 너비의 바둑 개념 카드·로컬 질문 챗봇. 학습 영역은 SGF가 없어도 표시됩니다.
+SGF가 없어도 학습 카드 및 로컬 질문 화면은 표시할 수 있습니다. 카드 아래에는 별도 챗봇 제목과 Ollama 모델명 소개 문구를 표시하지 않습니다.
 
-## 2. 주요 구성요소
+## 2. 구현 모듈
 
-| 구성 | 파일 | 역할 |
-| --- | --- | --- |
-| UI | `app.py` | 기보 선택, 복기, 착수 분석, 학습 자료 카드 |
-| SGF 해석 | `src/sgf_service.py` | SGF 메인 수순 재생 및 게임 메타데이터 |
-| 바둑판 | `src/board_svg.py` | SVG 좌표·돌·실제 착수 및 AI 제안 원 |
-| 자동 복기 | `src/playback.py` | 2초 진행, 수동 이동, 범위 제한 |
-| CWI 원본 | `src/cwi_source.py` | 공식 CWI SGF URL 제한, 크기·파일 검사, HTTPS 시스템 인증서 |
-| 착수 분석 | `src/katago_client.py` | KataGo JSON 분석, 추천 수, 흑 승률·예상 차이 |
-| 로컬 설정 | `src/local_settings.py` | Windows 사용자 폴더 기준 경로 제안, PC 전용 설정 저장 |
-| 학습 가이드 | `src/study_guide.py` | 노트를 분야별로 묶고 선택한 카드의 원문 설명 표시 |
-| 학습 자료 | `knowledge/*.md` | 16개의 한국어 바둑 기초 노트 |
-| 보존된 RAG 실험 | `src/rag_pipeline.py`, `src/ollama_client.py` | ChromaDB 임베딩 검색, Ollama 기반 Qwen 응답 실험. 현재 챗봇에서는 미사용 |
-| Windows 실행 | `start_baduk.ps1` | GitHub main 동기화 → 의존성 설치 → Streamlit 실행 |
+| 파일 | 연결된 역할 |
+| --- | --- |
+| `app.py` | Streamlit 사이드바, 65:35 상단 레이아웃, 전체 너비 학습, 로컬 질문 |
+| `src/sgf_service.py` | SGF 기본 메타데이터, 설정 돌·메인 수순, 특정 수까지 재생 |
+| `src/board_svg.py` | SVG 9·13·19줄 바둑판, 실제 착수·AI 추천 테두리 |
+| `src/playback.py` | 자동 진행 및 수동 이동, 백그라운드 탭에서도 1회에 최대 한 수 |
+| `src/cwi_source.py` | 공식 CWI HTTPS 링크 범위 검사, 다운로드 크기·SGF 유효성 확인 |
+| `src/katago_client.py` | KataGo JSON 분석 요청, 흑 기준 분석 결과, 상위 후보 |
+| `src/local_settings.py` | 개인 PC 전용 엔진·모델·분석 설정 |
+| `src/study_guide.py` | 16개 원문 노트의 분야 분류·제목·설명 추출 |
+| `src/fast_study.py` | 추가 질문에 연관된 노트 키워드·유사 표현 검색 |
+| `src/study_chat.py` | 선택 카드 + 연관 노트 + 최근 대화로 근거 제한 프롬프트 |
+| `src/ollama_client.py` | 로컬 Ollama `/api/chat` 스트리밍, 선택형 임베딩 API |
+| `src/rag_pipeline.py` | 기존 ChromaDB·EmbeddingGemma **선택 실험** |
+| `scripts/download_cwi_samples.py` | 앱이 호출하지 않는 독립 실행형 샘플 다운로드 유틸리티 |
+| `start_baduk.ps1` | Windows Private GitHub main 확인·안전 동기화·앱 시작 |
 
-## 3. 기보 입력과 보안 경계
+## 3. SGF와 CWI 입력 경계
 
-- **내 기보에서 선택:** `data/sgf/`에서 로컬 파일 로딩
-- **SGF 업로드:** 사용자 파일을 Streamlit이 받음
-- **CWI 직접 불러오기:** `https://homepages.cwi.nl/~aeb/go/games/games/` 아래의 `.sgf` URL만 허용
-- 원본 파일은 최대 2MB 읽기, SGF 파싱 및 바둑판 크기(9/13/19) 확인
-- URL 입력은 HTTPS·CWI 호스트로 제한. 다른 사이트로의 리다이렉트와 경로 탐색을 거부
-- Windows의 신뢰된 인증서 저장소를 `truststore`로 사용. **SSL 검증을 끄지 않음**
-- CWI 접속 실패 시 브라우저로 직접 SGF를 내려받아 파일 업로드 가능
+- **PC 파일:** `data/sgf/`의 `.sgf` 선택 또는 직접 업로드
+- **CWI 원본:** `https://homepages.cwi.nl/~aeb/go/games/games/` 범위의 직접 `.sgf` 링크만 허용
+- URL은 HTTPS·호스트·경로·리다이렉트·쿼리 등을 검사하고 최대 2MB를 읽음
+- Windows의 신뢰 인증서를 `truststore`로 사용하며 SSL 검증을 끄지 않음
+- 파일은 `sgfmill`에서 파싱하고 9·13·19줄 바둑판만 지원
+- 외부 기보의 메인 수순을 복기하는 앱으로, 전문 SGF 분기 편집기는 아님
+- 직접 열어 본 CWI 기보는 Streamlit 세션 상태에 유지; 다운로드 도구를 사용하지 않는 한 `data/sgf/`에 자동 저장하지 않음
 
-다운로드한 SGF 파일을 기본적으로 저장소에 체크인하지 않습니다.
+## 4. 복기와 KataGo 분석
 
-## 4. 자동 복기 및 분석
+`src/playback.advance`는 매 이동 간격이 지났을 때 **한 번에 한 수**를 진행하며 현재 UI는 **2초 고정**입니다. 수동 버튼 및 슬라이더 이동은 자동 재생을 중단합니다. 바둑판은 Streamlit fragment를 사용해 갱신합니다.
 
-**복기:** SGF를 바둑판으로 표시한 뒤 **2초 간격**으로 한 수씩 진행합니다. 이전/다음 수, 일시정지, 슬라이더 이동을 지원합니다. 수동 조작 시 자동 재생이 중단됩니다. 앱은 SGF의 메인 수순을 표시하며 모든 변화를 해석하는 전문 SGF 편집기는 아닙니다.
+`src/katago_client.build_query(record, turn - 1, ...)`는 현재 표시한 수 N이 **두어지기 전** 국면을 요청합니다. 실제 수와 AI 1순위 제안을 주황/파랑 테두리로 구별합니다. 반환값의 `rootInfo.winrate`와 `rootInfo.scoreLead`는 `configs/analysis_local.cfg`의 **BLACK 기준** 설정을 전제로 표시합니다.
 
-**KataGo 분석:** 수순 N을 선택하면 `build_query(record, N-1, rules, komi, visits)`로 N수를 두기 직전 국면을 전달합니다. KataGo 엔진 파일 및 네트워크 가중치는 **사용자 PC에 별도 설치**되어야 합니다. 설정은 다음과 같습니다.
+기본 제안: `~/KataGo/katago.exe`, `~/Downloads/kata1-b10c128-s1141046784-d204142634.txt.gz`, 5회 탐색. 엔진과 모델 파일은 GitHub에 포함되지 않습니다. 동일 국면·동일 설정의 분석은 Streamlit 서버 메모리로 캐시합니다. 요청은 사용자 액션 시 실행되므로 대기 시간이 발생할 수 있습니다.
 
-- 기본 경량 신경망: `kata1-b10c128-s1141046784-d204142634.txt.gz`를 Windows `Downloads`에서 찾도록 제안
-- 기본 실행 파일: `~/KataGo/katago.exe`
-- 기본 AI 탐색 횟수: **5**
-- 분석 설정 파일: `configs/analysis_local.cfg`
-- PC 전용 저장: `data/local/katago_settings.json`
-- 결과: 흑 승률, 예상 집 차이, 추천 착수/실제 착수 및 추가 후보·예상 수순
+SGF에 `RU`·`KM`이 없으면 분석에 사용하는 임시 기본값을 실제 대국의 규칙으로 확정할 수 없습니다. 추천 수와 실제 수가 다르다고 **승률 손실이나 악수라고 단정하지 않습니다.**
 
-**중요:** 엔진은 요청할 때마다 새 프로세스를 시작하며, 동일한 설정·국면에 대한 결과는 Streamlit 서버 메모리에 캐시됩니다. UI에서는 캐시 관련 안내 문구를 제거했습니다. 현재 분석만으로는 프로기사의 실제 착수의 승률 손실을 직접 계산하지 않습니다.
+## 5. 바둑 개념 카드와 로컬 채팅
 
-규칙(`RU`)·덤(`KM`)은 SGF 메타데이터를 사용하지만, 값이 없거나 확인되지 않은 경우 기본값을 임시 기준으로 표시합니다. 규칙이 잘못 설정되면 승률·집 차이 수치에도 영향을 줄 수 있습니다.
+`knowledge/`의 Markdown 학습 노트 **16개**를 `rag_pipeline.load_notes`로 읽습니다. `study_guide.grouped_study_notes`가 파일명·제목을 분야별로 묶고, 사용자가 카드 하나를 누르면 `note_answer`가 원문 설명을 보여줍니다. **카드 읽기에는 ChromaDB·Ollama가 필요하지 않습니다.**
 
-## 5. 분야별 학습 카드
+추가 질문은 카드 아래 `st.chat_input`에서 받습니다. `study_chat.build_study_chat_messages`는 선택 카드와 `fast_study.quick_answer`에서 관련성이 확인된 다른 노트(최대 2개)를 프롬프트에 넣고 최근 대화 일부를 포함합니다. 답변은 `ollama_client.chat_stream`으로 **`qwen3:1.7b`**에 전달하여 스트리밍합니다.
 
-현재 화면은 `src/study_guide.py`의 `grouped_study_notes()`, `note_title()`, `note_answer()`를 사용합니다.
+Ollama 기본 접속지는 **`http://127.0.0.1:11434`**입니다. 유료 외부 AI API 호출은 없지만 Ollama 설치·모델 다운로드가 필요하고 느릴 수 있습니다. LLM 프롬프트는 제공한 학습 자료 밖의 구체적 사실·실전 승률·프로기사 의도를 추측하지 말도록 제한합니다. **모델이 언제나 이를 준수하거나 정답을 보장하지는 않습니다.** 현재 채팅에 KataGo 현재 국면 데이터가 자동 제공되는 구조는 아닙니다.
 
-1. `knowledge/`의 Markdown 노트 **16개**를 읽습니다.
-2. 제목과 파일명으로 학습 노트를 기본 규칙·돌의 생사, 포석·돌의 형태, 전투·수읽기, 끝내기·형세로 분류합니다.
-3. 사용자가 분야를 선택한 후 학습 카드 버튼을 누르면 해당 노트의 원문 설명만 표시합니다.
-4. 분류되지 않은 노트는 '다른 바둑 개념'에 표시합니다. 인위적인 승률이나 착수 판단을 생성하지 않습니다.
+## 6. 선택 보존 기능: RAG 색인
 
-**학습 카드에는 검색 자체가 필요하지 않습니다.** 별도 임베딩·Ollama·Qwen을 호출하지 않으므로 즉시 읽을 수 있는 구조입니다. 현재 판의 생사·수읽기는 KataGo 분석이 필요합니다.
+기존 학습 실험을 위해 `src/rag_pipeline.py`와 ChromaDB 관리 UI는 유지합니다.
 
-**화면:** 질문 입력창·대화 이력을 제거하고 분야 선택과 제목 카드 목록을 제공합니다. 사용자가 선택한 카드의 설명만 표시합니다. 사이드바에는 노트 수만 보이고, 검색 색인은 접힌 관리 메뉴에서 다룹니다. SGF가 없어도 학습할 수 있습니다.
+- `embeddinggemma-2:270m` 임베딩을 로컬 Ollama에서 생성
+- `data/chroma/`의 선택형 색인, **검색 색인 관리 · 선택 → 검색 자료 동기화**에서만 명시적으로 갱신
+- **현재 카드 표시와 추가 질문은 이 색인을 읽지 않음**
+- 이전 `build_messages`, `chat` 함수는 연구용 유틸리티로 보존되어 있으나 기본 질문 호출 경로는 `study_chat → chat_stream`
 
-**이전 방식:** `src/fast_study.py`의 유사 표현 매칭 코드는 저장소에 남아 있지만 현재 학습 카드에서는 사용하지 않습니다. 표현이 조금만 달라도 검색이 빗나가는 문제를 피하기 위해 주제별 탐색을 기본 UI로 사용합니다.
+## 7. 로컬 보안과 검증
 
-## 6. 무료 로컬 질문 챗봇
+GitHub는 **Private**이며 `.gitignore`에서 SGF 다운로드, PC별 설정, ChromaDB 파일, 분석 로그와 신경망 가중치 등을 제외합니다. 원본 기보는 해당 사이트의 권리·이용 조건을 확인해야 합니다.
 
-학습 카드 아래 **AI에게 추가 질문하기**는 `src/study_chat.py`에서 선택한 카드와 키워드 검색된 관련 원문을 모아 `src/ollama_client.py`의 스트리밍 API로 보냅니다. 모델은 `qwen3:1.7b`이고 Ollama가 PC의 `127.0.0.1:11434`에서 실행되어야 합니다. 외부 유료 AI API는 호출하지 않습니다. 기본 카드 읽기는 모델 설치 없이 사용할 수 있습니다. 모델은 실제 바둑판을 분석하지 않으므로 승률·최선 수·프로기사 의도에 대한 답변은 제한됩니다.
-
-## 7. 보존된 선택형 임베딩/RAG 실험
-
-과거 실습 코드는 저장소에서 유지합니다.
-
-- `src/rag_pipeline.py`: `embeddinggemma-2:270m`을 통한 임베딩, `data/chroma/`의 ChromaDB 색인
-- `src/ollama_client.py`: Ollama 로컬 API, `qwen3:4b-instruct` 응답 생성
-- 사이드바의 **검색 색인 관리 · 선택 → 검색 자료 동기화:** 별도 색인 갱신. 현재 학습 카드에는 필요하지 않음
-
-**16개 노트와 ChromaDB 색인에 등록된 개수는 별도입니다.** 현재 학습 카드는 파일에 있는 16개 노트를 기준으로 표시합니다. 임베딩 색인의 개수가 적더라도 빠른 답변 기능에는 영향이 없습니다.
-
-## 7. 제한 사항 및 향후 검토
-
-- Windows 브라우저의 카드 UI·복기·CWI 연결·KataGo 실분석과 응답 시간을 최신 코드로 종합 검증해야 합니다.
-- KataGo 추천 수와 실제 착수의 차이를 '실수'로 판정하는 승률 손실 계산은 구현하지 않았습니다.
-- 학습 카드는 일반 개념 노트 공개이며 개인별 설명·새로운 추론을 생성하지 않습니다.
-- 개인 북마크, 착수별 메모, 복습 이력 등의 지속 저장 기능은 아직 구현하지 않았습니다.
-- 테스트의 상당 부분은 가짜 엔진·모델 응답을 사용하므로 실제 PC 실행 검증을 대신하지 않습니다.
-
-## 8. 개인정보와 원본 자료
-
-원본 기보 다운로드, KataGo 신경망 가중치 및 실행 파일, PC별 로컬 설정, `data/chroma/` 색인, 개인 데이터는 GitHub에 업로드하지 않습니다. `.gitignore`에서 로컬 산출물을 제외합니다. 원본 기보와 제3자 해설의 저작권·라이선스는 별도 확인이 필요합니다.
-
-CWI 출처: https://homepages.cwi.nl/~aeb/go/games/games/
+`tests/`는 파일 파싱·원격 URL 검증·바둑판 마커·복기·KataGo 요청·학습 카드·질문 프롬프트 등을 테스트하고, 일부 테스트는 가짜 KataGo·Ollama를 사용합니다. **Windows에서의 전체 사용자 인터페이스·외부 HTTPS·실제 엔진/모델 응답은 최신 코드 기준 미검증**입니다. 현재 상태와 다음 점검은 [개발 기록](DEVELOPMENT_LOG.md)에 정리합니다.
