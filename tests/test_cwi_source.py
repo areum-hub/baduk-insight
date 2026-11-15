@@ -41,7 +41,7 @@ def test_fetch_small_sgf_without_disk_write(monkeypatch):
     monkeypatch.setattr("src.cwi_source.build_opener", lambda *args: DummyOpener())
     raw, name = fetch_cwi_sgf("https://homepages.cwi.nl/~aeb/go/games/games/example.sgf")
     assert raw.startswith(b"(;")
-    assert name == "1.sgf"
+    assert name == "example.sgf"
 
 
 def test_fetch_rejects_html_response(monkeypatch):
