@@ -615,9 +615,14 @@ def show_replay():
         candidates = top_candidates(st.session_state["analysis_result"])
         ai_point = candidates[0].get("move") if candidates else None
 
-    # Streamlit HTML renders inline, without an oversized iframe. This keeps
-    # the replay controls directly below a responsive 9/13/19-line board.
-    st.html(render_board(board, last_move=last, ai_suggestion=ai_point))
+    # Streamlit st.html() sanitizes away raw SVG in some versions, causing an
+    # invisible board. st.image() supports SVG strings officially (including
+    # Streamlit 1.40) and scales to the available review column width.
+    # No iframe or fixed height: the playback controls follow the board.
+    st.image(
+        render_board(board, last_move=last, ai_suggestion=ai_point),
+        use_container_width=True,
+    )
     if ai_point:
         st.caption("🟠 주황 테두리: 실제 착수   ·   🔵 파란 테두리: AI 추천 위치")
 
