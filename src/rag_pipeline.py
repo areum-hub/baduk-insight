@@ -8,8 +8,6 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-import chromadb
-
 from src.ollama_client import EMBEDDING_MODEL, embed_texts
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,6 +33,10 @@ def load_notes(directory: Path = NOTES_DIR) -> list[dict]:
 
 
 def get_collection(db_path: Path = DB_DIR):
+    # Vector search is optional. Do not initialize ChromaDB on every replay
+    # and study-card refresh; load it only when the user selects RAG tools.
+    import chromadb
+
     client = chromadb.PersistentClient(path=str(db_path))
     return client.get_or_create_collection(
         name=COLLECTION,
