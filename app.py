@@ -14,7 +14,8 @@ from src.katago_client import KataGoError, build_query, gtp_coord, run_analysis,
 from src.local_settings import resolved_settings, save_settings, suggested_paths
 from src.sgf_service import load_sgf, replay
 from src.playback import advance, move_manually
-from src.ollama_client import OllamaError
+from src.ollama_client import OllamaError, chat_stream
+from src.study_chat import LOCAL_CHAT_MODEL, build_study_chat_messages
 from src.rag_pipeline import build_index, get_collection, load_notes
 from src.study_guide import grouped_study_notes, note_title, note_answer
 
@@ -279,6 +280,42 @@ def show_study_guide():
                 st.markdown(note_answer(selected_note))
     except (ValueError, OSError) as exc:
         st.error(f"바둑 학습 노트를 불러오지 못했습니다: {exc}")
+    st.divider()
+    st.markdown("#### AI에게 추가 질문하기")
+    st.caption("무료 로컬 Ollama · Qwen3 1.7B · 학습 노트 기반 답변")
+    history = st.session_state.setdefault("study_chat_messages", [])
+    for message in history:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+    question = st.chat_input(
+        "학습한 바둑 개념에서 궁금한 점을 질문하세요...",
+        key="local_study_chat",
+    )
+    if question:
+        with st.chat_message("user"):
+            st.markdown(question)
+        selected_note = next(
+            (note for note in load_notes()
+             if note["path"] == st.session_state.get("selected_lesson")),
+            None,
+        )
+        messages = build_study_chat_messages(
+            question, load_notes(), selected_note, history,
+        )
+        history.append({"role": "user", "content": question})
+        with st.chat_message("assistant"):
+            try:
+                with st.spinner("로컬 AI가 답변을 준비하고 있습니다..."):
+                    answer = st.write_stream(chat_stream(messages, model=LOCAL_CHAT_MODEL))
+                history.append({"role": "assistant", "content": answer})
+            except OllamaError as exc:
+                st.warning(
+                    "로컬 Ollama 연결 또는 모델 로딩에 실패했습니다. "
+                    "PowerShell에서 ollama pull qwen3:1.7b 를 실행하고 "
+                    "Ollama가 켜져 있는지 확인해 주세요."
+                )
+                st.caption(str(exc))
+
 
 if raw is None:
     st.info("기보를 선택하지 않아도 아래 바둑 개념 학습 자료를 읽을 수 있습니다.")
