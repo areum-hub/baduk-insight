@@ -2,7 +2,7 @@
 
 [README](../README.md) · [아키텍처](ARCHITECTURE.md) · [개발 기록](DEVELOPMENT_LOG.md)
 
-**소스 기준: 2026-11-15 / GitHub Private `main`**. 최신 Windows에서의 전체 통합 동작은 아직 확인하지 않았습니다.
+**소스 기준: 2026-11-15 / GitHub Public `main`**. 최신 Windows에서의 전체 통합 동작은 아직 확인하지 않았습니다.
 
 ## 1. 설치된 PC에서 최신 코드 실행
 
@@ -16,7 +16,7 @@ git pull --ff-only origin main
 .\.venv\Scripts\python.exe -m streamlit run app.py
 ```
 
-브라우저에서 **http://localhost:8501**을 엽니다. **Private 저장소** 인증 실패 시 변경 사항이 적용되지 않습니다. 추적 중인 소스에 수정 사항이 있다면 원인을 확인한 뒤 처리하세요. `git reset --hard`로 복구를 시도하지 마세요.
+브라우저에서 **http://localhost:8501**을 엽니다. 공개 저장소이므로 복제는 로그인 없이도 가능하지만, 네트워크·Git 설정 오류로 `git pull`이 실패하면 변경 사항이 적용되지 않습니다. 추적 중인 소스에 수정 사항이 있다면 원인을 확인한 뒤 처리하세요. `git reset --hard`로 복구를 시도하지 마세요.
 
 기존 저장소에 `start_baduk.ps1`이 있으면 `.\start_baduk.ps1`을 실행해 **main 확인 → 원격 동기화 → 종속성 설치 → Streamlit 실행**을 순서대로 시도할 수 있습니다. `-SkipDependencies` 옵션은 이미 설치한 패키지 확인을 건너뛸 때 사용합니다.
 
@@ -24,7 +24,7 @@ git pull --ff-only origin main
 
 ## 2. 새 PC에서 처음 설치
 
-**필요:** Windows PowerShell, Python, Git, Private 저장소 접근 권한.
+**필요:** Windows PowerShell, Python, Git, 인터넷 연결.
 
 ```powershell
 git clone https://github.com/areum-hub/baduk-insight.git
@@ -87,7 +87,7 @@ ollama pull qwen3:1.7b
 
 | 증상 | 확인 사항 |
 | --- | --- |
-| `git pull` 인증 실패 | Private 저장소 권한, GitHub 자격 증명 확인 |
+| `git pull` 실패 | 인터넷 연결·Git 원격 URL·로컬 변경 사항 확인 |
 | `git pull` 로컬 수정 충돌 | 수정 파일을 확인하고 커밋/보관 후 재시도; 강제 초기화 금지 |
 | `ModuleNotFoundError` | `.venv\Scripts\python.exe -m pip install -r requirements.txt` |
 | `localhost:8501` 접속 불가 | Streamlit 콘솔 메시지 및 포트 확인 |
