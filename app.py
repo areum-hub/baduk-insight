@@ -158,9 +158,15 @@ st.markdown(
     section[data-testid="stSidebar"] > div:first-child {
         background: var(--secondary-background-color, #f8f7f5);
     }
+    /* Scroll the settings panel instead of clipping the lower sections. */
+    section[data-testid="stSidebar"] [data-testid="stSidebarContent"] {
+        overflow-y: auto;
+        max-height: 100dvh;
+        overscroll-behavior-y: contain;
+    }
     section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {
-        padding-top: 1.3rem;
-        padding-bottom: 1.8rem;
+        padding-top: .65rem;
+        padding-bottom: .85rem;
     }
     section[data-testid="stSidebar"] [data-testid="stVerticalBlockBorderWrapper"] {
         border-radius: 14px;
@@ -217,14 +223,16 @@ if not available and not st.session_state.get("go_seigen_initial_attempted", Fal
 with st.sidebar:
     with st.container(border=True):
         st.subheader("01 · 오청원 기보 선택")
-        st.caption("기본 복기 목록은 오청원(Go Seigen) 대국만 표시합니다.")
+        st.caption("기본 목록: 오청원(Go Seigen) 대국")
         raw = None
         name = ""
         source = st.radio(
             "기보 선택 방법",
             ["Go Seigen", "Upload SGF"],
             key="source_mode",
-            format_func=lambda item: "오청원 기보" if item == "Go Seigen" else "다른 SGF 직접 열기",
+            format_func=lambda item: "오청원" if item == "Go Seigen" else "다른 SGF",
+            horizontal=True,
+            label_visibility="collapsed",
         )
         if source == "Go Seigen":
             if not available:
@@ -339,7 +347,6 @@ with st.sidebar:
             source_notes = load_notes()
             source_count = len(source_notes)
             st.caption(f"바둑 개념 노트 {source_count}개")
-            st.caption("학습 카드에서 분야별 설명을 선택하세요.")
             with st.expander("검색 색인 관리 · 선택", expanded=False):
                 index_count = get_collection().count()
                 st.caption(f"기존 RAG 실습 색인 {index_count}개 / 원본 노트 {source_count}개")
