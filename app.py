@@ -6,7 +6,6 @@ from html import escape
 from pathlib import Path
 
 import streamlit as st
-import streamlit.components.v1 as components
 from sgfmill import sgf
 
 from src.cwi_source import ARCHIVE_URL, fetch_cwi_sgf
@@ -192,21 +191,30 @@ st.markdown(
     section[data-testid="stSidebar"] [data-baseweb="select"] > div {
         border-radius: 10px;
     }
-    /* Keep the chat composer floating without covering the last study cards
-       or chat messages when the page is scrolled all the way down. */
-    section[data-testid="stMain"] [data-testid="stMainBlockContainer"] {
-        padding-bottom: 10rem !important;
+    /* The study composer stays in its own section instead of creating a
+       viewport-wide fixed footer over the Go board. Its sticky positioning
+       is bounded by the study workspace, not the whole dashboard. */
+    .st-key-study_workspace {
+        position: relative;
+        isolation: isolate;
     }
-    /* A narrower, centered composer leaves the board/study content visible
-       at the sides on desktop while remaining responsive on mobile. */
-    [data-testid="stBottomBlockContainer"] {
-        width: calc(100% - 2rem) !important;
-        max-width: 880px !important;
-        margin-inline: auto !important;
+    .st-key-study_chat_composer {
+        position: sticky;
+        bottom: .75rem;
+        z-index: 5;
+        width: min(100%, 720px);
+        margin-inline: auto;
+        padding: .35rem .65rem;
+        border: 1px solid rgba(127, 127, 127, .18);
+        border-radius: 16px;
+        background: var(--background-color, #fff);
+        box-shadow: 0 3px 16px rgba(0, 0, 0, .08);
     }
     @media (max-width: 640px) {
-        [data-testid="stBottomBlockContainer"] {
-            width: calc(100% - 1rem) !important;
+        .st-key-study_chat_composer {
+            width: 100%;
+            bottom: .25rem;
+            padding: .2rem .3rem;
         }
     }
     </style>
@@ -438,10 +446,13 @@ def show_study_guide():
     for message in history:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
-    question = st.chat_input(
-        "학습한 개념에서 궁금한 점을 질문하세요...",
-        key="local_study_chat",
-    )
+    # Chat input inside a container renders inline. Sticky CSS keeps it
+    # convenient within the study section but never floats over the board.
+    with st.container(key="study_chat_composer"):
+        question = st.chat_input(
+            "학습한 개념에서 궁금한 점을 질문하세요...",
+            key="local_study_chat",
+        )
     if question:
         with st.chat_message("user"):
             st.markdown(question)
@@ -470,7 +481,8 @@ def show_study_guide():
 
 if raw is None:
     st.info("기보를 선택하지 않아도 아래 바둑 개념 학습 자료를 읽을 수 있습니다.")
-    show_study_guide()
+    with st.container(key="study_workspace"):
+        show_study_guide()
     st.stop()
 
 try:
@@ -541,10 +553,18 @@ if st.session_state.get("game_digest") != digest:
     st.session_state.playing = False
     st.session_state.last_advance = time.monotonic()
 
-# A fragment refreshes the replay only; KataGo and study workspace run separately.
-left, right = st.columns([65, 35], gap="medium")
+# Keep both panes aligned: board + controls on the left, KataGo on the right.
+# The replay timer is active only while playing, so paused study clicks do
+# not trigger unnecessary fragment refreshes.
+st.markdown(
+    f'<h2 class="bi-game-title">{escape(record.black_player)} (Black) '
+    f'vs {escape(record.white_player)} (White)</h2>',
+    unsafe_allow_html=True,
+)
+st.caption(f"{record.event} | {record.date} | {record.result} | {name}")
+left, right = st.columns([62, 38], gap="large")
 
-@st.fragment(run_every="0.25s")
+@st.fragment(run_every="0.5s" if st.session_state.playing else None)
 def show_replay():
     if st.session_state.pop("replay_full_refresh", False):
         # Refresh the entire page, not only the playback fragment. The KataGo
@@ -580,6 +600,29 @@ def show_replay():
             st.session_state.playing = False
             st.rerun(scope="app")
     current = st.session_state.move_index
+    try:
+        board, last = replay(record, current)
+    except (ValueError, IndexError) as exc:
+        st.session_state.playing = False
+        st.error(f"Could not replay move: {exc}")
+        return
+
+    current_key = (digest, current, rules, float(komi), visits, binary, model, config)
+    ai_point = None
+    if (
+        current > 0
+        and st.session_state.get("analysis_key") == current_key
+        and st.session_state.get("analysis_result")
+    ):
+        candidates = top_candidates(st.session_state["analysis_result"])
+        ai_point = candidates[0].get("move") if candidates else None
+
+    # Streamlit HTML renders inline, without an oversized iframe. This keeps
+    # the replay controls directly below a responsive 9/13/19-line board.
+    st.html(render_board(board, last_move=last, ai_suggestion=ai_point))
+    if ai_point:
+        st.caption("🟠 주황 테두리: 실제 착수   ·   🔵 파란 테두리: AI 추천 위치")
+
     controls = st.columns(3)
     with controls[0]:
         if st.button("⏮ 이전", disabled=current == 0, key="replay_previous", use_container_width=True):
@@ -601,16 +644,14 @@ def show_replay():
             st.session_state.move_index = move_manually(current, record.move_count, 1)
             st.session_state.last_advance = time.monotonic()
             st.rerun(scope="app")
-    # Do not mutate the Session State of an already-instantiated slider.
-    # Each displayed position receives an independent widget key. The
-    # callback reads the user's input before the fragment timer runs again.
+
+    # A key per position avoids rewriting an already rendered slider widget.
     seek_key = seek_widget_key(digest, current)
 
     def on_seek():
         st.session_state.playing = False
         st.session_state.move_index = int(st.session_state[seek_key])
         st.session_state.last_advance = time.monotonic()
-        # Re-render the parent layout too, to synchronize the AI panel.
         st.session_state.replay_full_refresh = True
 
     st.slider(
@@ -618,52 +659,21 @@ def show_replay():
         value=current, key=seek_key, on_change=on_seek,
         help="슬라이더를 움직이면 자동 재생이 멈추고 선택한 수로 이동합니다.",
     )
-    current = st.session_state.move_index
     st.caption(
         f"복기: {current} / {record.move_count}수 · "
         + (f"자동 재생 중 ({PLAYBACK_SECONDS}초/수)" if st.session_state.playing else "일시정지")
     )
-    try:
-        board, last = replay(record, current)
-    except (ValueError, IndexError) as exc:
-        st.session_state.playing = False
-        st.error(f"Could not replay move: {exc}")
-        return
-    height = 750 if record.size == 19 else (630 if record.size == 13 else 510)
-    current_key = (
-        digest, current, rules, float(komi), visits, binary, model, config
-    )
-    ai_point = None
-    if (
-        current > 0
-        and st.session_state.get("analysis_key") == current_key
-        and st.session_state.get("analysis_result")
-    ):
-        candidates = top_candidates(st.session_state["analysis_result"])
-        ai_point = candidates[0].get("move") if candidates else None
-    components.html(
-        render_board(board, last_move=last, ai_suggestion=ai_point),
-        height=height,
-        scrolling=False,
-    )
-    if ai_point:
-        st.caption("🟠 주황 테두리: 실제 착수   ·   🔵 파란 테두리: AI 추천 위치")
 
 with left:
     with st.container(key="replay_workspace"):
-        st.markdown(
-            f'<h2 class="bi-game-title">{escape(record.black_player)} (Black) '
-            f'vs {escape(record.white_player)} (White)</h2>',
-            unsafe_allow_html=True,
-        )
-        st.caption(f"{record.event} | {record.date} | {record.result} | {name}")
         show_replay()
 with right:
     turn = st.session_state.move_index
     st.markdown('<h2 class="bi-analysis-title">AI 착수 분석</h2>', unsafe_allow_html=True)
-    st.caption(f"선택한 장면: {turn} / {record.move_count}수")
     if st.session_state.playing:
-        st.caption("일시정지하면 현재 장면을 분석할 수 있습니다.")
+        st.caption("자동 재생 중 · 일시정지 후 현재 수순 분석 가능")
+    else:
+        st.caption(f"선택한 장면: {turn} / {record.move_count}수")
     st.caption("현재 수를 두기 **직전**에 AI가 추천한 위치를 분석합니다.")
     if turn > 0:
         lookup = (digest, turn, rules, float(komi), visits, binary, model, config)
@@ -680,6 +690,8 @@ with right:
                     result = cached_katago_analysis(query_json, binary, model, config)
                 st.session_state.analysis_key = lookup
                 st.session_state.analysis_result = result
+                # Immediately render the blue AI suggestion on the board.
+                st.rerun(scope="app")
             except (KataGoError, ValueError, OSError) as exc:
                 st.session_state.analysis_key = None
                 st.session_state.analysis_result = None
@@ -722,6 +734,7 @@ with right:
                 else:
                     st.warning("후보 수가 반환되지 않았습니다.")
 
-# Full-width learning workspace below the 65/35 replay and KataGo columns.
+# Study cards and local chat follow the 62/38 review workspace.
 st.divider()
-show_study_guide()
+with st.container(key="study_workspace"):
+    show_study_guide()
