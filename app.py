@@ -365,18 +365,35 @@ with st.sidebar:
             source_count = len(source_notes)
             st.caption(f"바둑 개념 노트 {source_count}개")
             with st.expander("검색 색인 관리 · 선택", expanded=False):
-                index_count = get_collection().count()
-                st.caption(f"기존 RAG 실습 색인 {index_count}개 / 원본 노트 {source_count}개")
+                # Streamlit executes collapsed expanders on every app rerun.
+                # Chroma startup can delay the study-card's selection highlight,
+                # so access the vector database only on an explicit user action.
+                if st.button("현재 색인 확인", key="check_rag_index", use_container_width=True):
+                    try:
+                        st.session_state["rag_index_count"] = get_collection().count()
+                    except (OSError, RuntimeError, ValueError) as exc:
+                        st.error(f"검색 색인을 확인하지 못했습니다: {exc}")
+                if "rag_index_count" in st.session_state:
+                    st.caption(
+                        f"기존 RAG 실습 색인 {st.session_state['rag_index_count']}개"
+                        f" / 원본 노트 {source_count}개"
+                    )
                 if st.button("검색 자료 동기화", key="refresh_knowledge", use_container_width=True):
                     try:
                         with st.spinner("검색 색인을 갱신하는 중..."):
                             indexed = build_index(source_notes)
+                        st.session_state["rag_index_count"] = indexed
                         st.success(f"{indexed}개 문서 등록 완료")
                         st.rerun()
                     except (OllamaError, ValueError, RuntimeError, OSError) as exc:
                         st.error(f"색인 갱신 실패: {exc}")
         except (OSError, RuntimeError, ValueError) as exc:
             st.error(f"학습 자료를 읽지 못했습니다: {exc}")
+
+
+def select_study_lesson(path: str) -> None:
+    """Update the active card before Streamlit draws the next UI frame."""
+    st.session_state["selected_lesson"] = path
 
 
 def show_study_guide():
@@ -399,13 +416,14 @@ def show_study_guide():
         tiles = st.columns(2)
         for i, lesson in enumerate(lessons):
             with tiles[i % 2]:
-                if st.button(
+                st.button(
                     note_title(lesson),
                     key="lesson_card_" + lesson["path"],
                     use_container_width=True,
                     type="primary" if st.session_state.get("selected_lesson") == lesson["path"] else "secondary",
-                ):
-                    st.session_state["selected_lesson"] = lesson["path"]
+                    on_click=select_study_lesson,
+                    args=(lesson["path"],),
+                )
         selected_note = next(
             (n for n in lessons if n["path"] == st.session_state.get("selected_lesson")),
             None,
