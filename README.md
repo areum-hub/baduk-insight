@@ -2,10 +2,6 @@
 
 **KataGo와 로컬 AI를 활용한 프로 바둑 기보 복기·개념 학습 프로젝트**
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-lightgrey.svg)](LICENSE)
-
 **Baduk Insight**는 SGF 형식의 프로 바둑 기보를 한 수씩 복기하고, 필요한 장면을 **KataGo**로 분석하며, 바둑 개념을 **학습 카드와 로컬 AI 질문**으로 공부하는 Python·Streamlit 기반 개인 프로젝트입니다.
 
 외부 유료 AI API 없이 로컬에서 실행할 수 있도록 구성했습니다. **기보 복기, 국면 분석, 개념 학습**을 하나의 대시보드에서 연결하는 것이 목표입니다.
