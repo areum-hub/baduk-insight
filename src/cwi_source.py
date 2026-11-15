@@ -19,11 +19,8 @@ CWI_ROOT = "/~aeb/go/games/games/"
 MAX_SGF_BYTES = 2_000_000
 
 # A few directly linked originals. For any other game, paste its SGF URL.
-CWI_CHOICES = {
-    "이세돌 vs 알파고 · 제1국 (2016-03-09)": ARCHIVE_URL + "AlphaGo/LeeSedol/1.sgf",
-    "이세돌 vs 알파고 · 제4국 (2016-03-13)": ARCHIVE_URL + "AlphaGo/LeeSedol/4.sgf",
-    "이세돌 vs 알파고 · 제5국 (2016-03-15)": ARCHIVE_URL + "AlphaGo/LeeSedol/5.sgf",
-}
+# No bundled game selections: Go Seigen collection is fetched from CWI on demand.
+CWI_CHOICES = {}
 
 
 def validate_cwi_url(url: str) -> str:
