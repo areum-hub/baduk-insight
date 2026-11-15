@@ -9,6 +9,9 @@ import io
 import ssl
 import tarfile
 from pathlib import Path, PurePosixPath
+from functools import lru_cache
+
+from sgfmill import sgf, sgf_moves
 from urllib.request import HTTPSHandler, Request, build_opener
 
 import truststore
@@ -20,10 +23,50 @@ MAX_SGF_BYTES = 2_000_000
 MAX_FILES = 2000
 
 
+@lru_cache(maxsize=4)
+def _validated_go_seigen_paths(
+    fingerprints: tuple[tuple[str, int, int], ...],
+) -> tuple[str, ...]:
+    """Return only Go Seigen games whose complete main line can be replayed.
+
+    Cache by file metadata to avoid replaying ~900 SGFs on Streamlit reruns.
+    """
+    accepted = []
+    for filename, _, _ in fingerprints:
+        try:
+            game = sgf.Sgf_game.from_bytes(Path(filename).read_bytes())
+            if game.get_size() not in (9, 13, 19):
+                continue
+            root = game.get_root()
+            players = [
+                str(root.get(prop)).strip().casefold()
+                for prop in ("PB", "PW")
+                if root.has_property(prop)
+            ]
+            if "go seigen" not in players:
+                continue
+            board, moves = sgf_moves.get_setup_and_moves(game)
+            if not moves:
+                continue
+            for colour, point in moves:
+                if point is not None:
+                    board.play(point[0], point[1], colour)
+            accepted.append(filename)
+        except (ValueError, TypeError, IndexError, KeyError):
+            # A damaged or non-replayable SGF must not break the dashboard.
+            continue
+    return tuple(accepted)
+
+
 def local_go_seigen_games(data_dir: Path) -> list[Path]:
-    """Never mix unrelated SGFs from data/sgf/ into the default game list."""
+    """Only show complete, playable Go Seigen games in the default selector."""
     folder = data_dir / GO_SEIGEN_DIR_NAME
-    return sorted(path for path in folder.glob("*.sgf") if path.is_file())
+    fingerprints = tuple(
+        (str(path), path.stat().st_mtime_ns, path.stat().st_size)
+        for path in sorted(folder.glob("*.sgf"))
+        if path.is_file()
+    )
+    return [Path(name) for name in _validated_go_seigen_paths(fingerprints)]
 
 
 def import_go_seigen_archive(raw: bytes, target: Path) -> int:
