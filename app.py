@@ -93,7 +93,7 @@ st.markdown(
     .bi-brand-title {
         margin: 0 !important;
         padding: 0 !important;
-        font-size: clamp(2.3rem, 3.8vw, 3.25rem) !important;
+        font-size: clamp(2rem, 3.3vw, 2.8rem) !important;
         line-height: 1.12 !important;
         letter-spacing: -0.035em !important;
         font-weight: 700 !important;
