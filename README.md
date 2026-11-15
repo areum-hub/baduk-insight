@@ -49,7 +49,7 @@ Baduk Insight
 
 ## Windows 설치 및 실행
 
-GitHub 코드 변경은 연결된 GitHub에서 직접 관리하고, 개인 PC에서는 **최신 ZIP으로 갱신**합니다. `git clone`, `git pull`, `start_baduk.ps1`은 필요하지 않습니다.
+GitHub 코드 변경은 연결된 GitHub에서 직접 관리하고, 개인 PC에서는 **최신 ZIP으로 갱신**합니다. 
 
 PowerShell에서 기존 Streamlit을 `Ctrl + C`로 종료하고 실행하세요.
 
