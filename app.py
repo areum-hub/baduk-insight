@@ -222,6 +222,29 @@ with st.sidebar:
                 except (OSError, ValueError) as exc:
                     st.error(f"설정 저장 실패: {exc}")
 
+with st.sidebar:
+    with st.container(border=True):
+        st.subheader("03 · 학습 자료")
+        try:
+            source_notes = load_notes()
+            source_count = len(source_notes)
+            st.caption(f"바둑 개념 노트 {source_count}개")
+            st.caption("학습 카드에서 분야별 설명을 선택하세요.")
+            with st.expander("검색 색인 관리 · 선택", expanded=False):
+                index_count = get_collection().count()
+                st.caption(f"기존 RAG 실습 색인 {index_count}개 / 원본 노트 {source_count}개")
+                if st.button("검색 자료 동기화", key="refresh_knowledge", use_container_width=True):
+                    try:
+                        with st.spinner("검색 색인을 갱신하는 중..."):
+                            indexed = build_index(source_notes)
+                        st.success(f"{indexed}개 문서 등록 완료")
+                        st.rerun()
+                    except (OllamaError, ValueError, RuntimeError, OSError) as exc:
+                        st.error(f"색인 갱신 실패: {exc}")
+        except (OSError, RuntimeError, ValueError) as exc:
+            st.error(f"학습 자료를 읽지 못했습니다: {exc}")
+
+
 def show_study_guide():
     st.markdown("### 바둑 개념 학습")
     st.caption("분야와 학습 카드를 선택하면 해당 설명을 읽을 수 있습니다.")
@@ -324,27 +347,6 @@ with analysis_sidebar_card:
     note = " · 기보 규칙 미확인" if not sgf_rules else ""
 
 
-with st.sidebar:
-    with st.container(border=True):
-        st.subheader("03 · 학습 자료")
-        try:
-            source_notes = load_notes()
-            source_count = len(source_notes)
-            st.caption(f"바둑 개념 노트 {source_count}개")
-            st.caption("학습 카드에서 분야별 설명을 선택하세요.")
-            with st.expander("검색 색인 관리 · 선택", expanded=False):
-                index_count = get_collection().count()
-                st.caption(f"기존 RAG 실습 색인 {index_count}개 / 원본 노트 {source_count}개")
-                if st.button("검색 자료 동기화", key="refresh_knowledge", use_container_width=True):
-                    try:
-                        with st.spinner("검색 색인을 갱신하는 중..."):
-                            indexed = build_index(source_notes)
-                        st.success(f"{indexed}개 문서 등록 완료")
-                        st.rerun()
-                    except (OllamaError, ValueError, RuntimeError, OSError) as exc:
-                        st.error(f"색인 갱신 실패: {exc}")
-        except (OSError, RuntimeError, ValueError) as exc:
-            st.error(f"학습 자료를 읽지 못했습니다: {exc}")
 
 digest = hashlib.sha256(raw).hexdigest()
 if st.session_state.get("game_digest") != digest:
